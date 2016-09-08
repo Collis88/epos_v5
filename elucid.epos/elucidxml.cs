@@ -7,6 +7,7 @@ using System.Text;
 using System.IO;
 using System.Threading;
 using System.Collections;
+//using eposxml;
 
 namespace epos
 {
@@ -481,6 +482,8 @@ namespace epos
 			int idx;
 			DateTime dt = DateTime.Now;
 			decimal totdiscount = ord.DiscountVal;
+            int BundleCount = 0;
+
 			for (idx = 0; idx < ord.NumLines; idx++)
 			{
 				totdiscount += ord.lns[idx].Discount;
@@ -636,10 +639,14 @@ namespace epos
 			outxml = outxml + endxml("Shipping");
 			for (idx = 0; idx < ord.NumLines; idx++)
 			{
+				//2016-09-08 SL - 5.000 - V3 to V5 Upgrade
+				int line = idx + (1 - BundleCount);
+
 				// if component then don't send to elucid
 				if (!ord.lns[idx].ComponentPart)
 				{
-					int line = idx + 1;
+					//2016-09-08 SL - 5.000 - V3 to V5 Upgrade
+					//int line = idx + 1;
 
 					outxml = outxml + startxml("OrderLine");
 					outxml = outxml + xmlelement("LineNumber", line.ToString());
@@ -738,12 +745,17 @@ namespace epos
 					outxml = outxml + xmlelement("ReasonCode", ord.lns[idx].ReasonCode);
 					for (int idy = 0; idy < ord.NumLines; idy++)
 					{
-						if (ord.lns[idy].MasterLine == idx && !ord.lns[idy].ComponentPart)
+						//2016-09-08 SL - 5.000 - V3 to V5 Upgrade >>
+						if (!ord.lns[idy].BundleMaster && !ord.lns[idy].BundleSlave)
 						{
-							outxml = outxml + startxml("OrderOffers");
-							outxml = outxml + xmlelement("OfferLine", (idy + 1).ToString());
-							outxml = outxml + xmlelement("OfferPart", ord.lns[idy].Part);
-							outxml = outxml + endxml("OrderOffers");
+						//2016-09-08 SL - 5.000 - V3 to V5 Upgrade ^^
+							if (ord.lns[idy].MasterLine == idx && !ord.lns[idy].ComponentPart)
+							{
+								outxml = outxml + startxml("OrderOffers");
+								outxml = outxml + xmlelement("OfferLine", (idy + 1).ToString());
+								outxml = outxml + xmlelement("OfferPart", ord.lns[idy].Part);
+								outxml = outxml + endxml("OrderOffers");
+							}
 						}
 					}
 
@@ -822,9 +834,27 @@ namespace epos
 							outxml = outxml + endxml("LineSerialNumber");
 						}
 					}
+					//2016-09-08 SL - 5.000 - V3 to V5 Upgrade >>
+					if (ord.lns[idx + 1].BundleSlave)
+					{
+						while (ord.lns[idx + 1].BundleSlave)
+						{
+							idx = idx + 1;
+							BundleCount = BundleCount + 1;
+							outxml = outxml + startxml("OrderScheduleItem");
+
+							outxml = outxml + xmlelement("ScheduleItem", ord.lns[idx].Part.Trim());
+							outxml = outxml + xmlelement("ScheduleQty", ord.lns[idx].Qty.ToString());
+
+							outxml = outxml + endxml("OrderScheduleItem");
+						}
+					}
+					//2016-09-08 SL - 5.000 - V3 to V5 Upgrade ^^
 					outxml = outxml + endxml("OrderLine");
 				}
 			}
+			//2016-09-08 SL - 5.000 - V3 to V5 Upgrade
+			BundleCount = 0;
 
 			outxml = outxml + endxml("OrderRecipient");
             decimal RealCashVal = ord.CashVal;// -ord.DepCashVal;

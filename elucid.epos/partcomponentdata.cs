@@ -95,4 +95,68 @@ namespace epos
 		}
 
 	}
+
+	//2016-09-08 SL - 5.000 - V3 to V5 Upgrade >>
+	public class PartBundleData
+	{
+		private string mBundlePart;
+		private int mBundleQty;
+		private string mBundleDescription;
+		private int mBundleSequence;
+		public PartBundleData(string part, int qty, string desc, int sequence)
+		{
+			//
+			// TODO: Add constructor logic here
+			//
+			mBundlePart = part;
+			mBundleQty = qty;
+			mBundleDescription = desc;
+			mBundleSequence = sequence;
+		}
+		public string BundlePart
+		{
+			get
+			{
+				return mBundlePart;
+			}
+			set
+			{
+				mBundlePart = value;
+			}
+		}
+		public int BundleQty
+		{
+			get
+			{
+				return mBundleQty;
+			}
+			set
+			{
+				mBundleQty = value;
+			}
+		}
+		public string BundleDescription
+		{
+			get
+			{
+				return mBundleDescription;
+			}
+			set
+			{
+				mBundleDescription = value;
+			}
+		}
+		public int BundleSequnce
+		{
+			get
+			{
+				return mBundleSequence;
+			}
+			set
+			{
+				mBundleSequence = value;
+			}
+		}
+	}
+	//2016-09-08 SL - 5.000 - V3 to V5 Upgrade ^^
 }

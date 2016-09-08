@@ -51,7 +51,6 @@ namespace epos {
 		//2.976 -	2016-08-16	JoJo- blank connection string as default
 		//2.976 -	2016-09-02	Axminster- fixes to issue 11 from SharePoint list.
 		//5.000 -	2016-09-07	V2 to V5 Upgrade
-		//5.001 -	2016-09-07	V3 to V5 Upgrade
 
 		public const int DIGIPOS_DRAWER_CMD = 0x48F;
 

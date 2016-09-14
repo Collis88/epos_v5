@@ -79,6 +79,7 @@ namespace epos
 				UNIFACE_trh108.trh108 elucidObject = new UNIFACE_trh108.trh108();
 #endif
 #if TRH107
+				//UNIFACE_trh107.trh107 elucidObject = new UNIFACE_trh107.trh107();
 				UNIFACE_trh107.trh107 elucidObject = new UNIFACE_trh107.trh107();
 #endif
 #if TRH106
@@ -5721,6 +5722,105 @@ namespace epos
             }
         }
         #endregion // get flight numbers
+
+		#region searchstockbin
+		public int searchstockbin(instancedata id, partdata part, stocksearch res, string useSite)
+		{
+			string outxml;
+			string inxml;
+			int status_ret;
+			string errmsg_ret;
+			string strTemp;
+			int idx;
+			decimal tmpQty;
+
+			XmlDocument LResult;
+			XmlElement root;
+			XmlNode child;
+			XmlNode grandchild;
+			id.ErrorNumber = 0;
+			id.ErrorMessage = "";
+
+			outxml = create_stock_check_xml(id, part, useSite);
+
+			id.Status = sendxml("POS", "39", part.PartNumber, outxml, true, out inxml, out status_ret, out errmsg_ret);
+
+			id.ErrorNumber = status_ret;
+			id.ErrorMessage = errmsg_ret;
+
+			if (id.Status != 0)	// dont try to decipher xml if error
+			{
+				//errorOutXml = outxml;
+				debugxml(outxml, true, "39");
+				return (id.Status);
+			}
+
+			LResult = new XmlDocument();
+			LResult.LoadXml(inxml);
+			root = LResult.DocumentElement;
+			child = root.SelectSingleNode("PART.PSEDB");
+			grandchild = child.SelectSingleNode("VSTORBIN_STOCK.VIEWDB");
+
+			idx = res.NumLines;
+
+			while (idx < 200)
+			{
+				try
+				{
+					res.lns[idx].Level1 = grandchild.SelectSingleNode("SITE").InnerXml;
+					res.lns[idx].SiteDescription = grandchild.SelectSingleNode("SITE_DESCR").InnerXml;
+					try
+					{
+						strTemp = grandchild.SelectSingleNode("STOCK").InnerXml;
+						strTemp = strTemp.Replace("#", "");
+						strTemp = strTemp.Replace("*", "");
+						tmpQty = Convert.ToDecimal(strTemp);
+						res.lns[idx].Qty = Convert.ToInt32(Decimal.Truncate(tmpQty));
+					}
+					catch (Exception)
+					{
+						res.lns[idx].Qty = 0;
+					}
+
+					try
+					{
+						res.lns[idx].Store = grandchild.SelectSingleNode("STORE").InnerXml;
+					}
+					catch
+					{
+						res.lns[idx].Store = "";
+					}
+					try
+					{
+						res.lns[idx].Bin = grandchild.SelectSingleNode("BIN").InnerXml;
+					}
+					catch
+					{
+						res.lns[idx].Bin = "";
+					}
+
+					idx++;
+
+					if (idx == 200)
+						break;
+
+					grandchild = grandchild.NextSibling;
+					if (grandchild == null)
+						break;
+
+				}
+				catch (Exception)
+				{
+					break;
+				}
+			}
+
+			res.NumLines = idx;
+
+			return id.Status;
+		}
+		#endregion //searchstockbin
+
 
 		#endregion // transaction routines
 

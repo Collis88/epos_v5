@@ -57,7 +57,7 @@ namespace epos
         private string mGiftvPrefix;
         private string mepos_cred_paym;
         private bool mexclusivediscounts;
-        private flightdata mCurrentFlight;
+        private epos.partdata.flightdata mCurrentFlight;
 		private string mOrderNumber;
 		private bool mMultibuyDiscount;
 		private string mConnectionString;
@@ -602,7 +602,7 @@ namespace epos
                 mGiftvPrefix = value;
             }
         }
-        public flightdata CurrentFlight
+        public epos.partdata.flightdata CurrentFlight
         {
             get
             {
@@ -694,7 +694,7 @@ namespace epos
 			strarray4 = new ReasonRecord[200];
 			strarray5 = new ReasonRecord[200];
 			strarray6 = new string[200];
-            mCurrentFlight = new flightdata();
+            mCurrentFlight = new epos.partdata.flightdata();
 			mConnectionString = ConnectionString;
 			mTimeOut = TimeOut;
 			mweightscaleprefix = weightscaleprefix;

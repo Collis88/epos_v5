@@ -35,7 +35,7 @@ namespace epos
 	public class kitlist
 	{
 		private int mNumLines;
-		public kitdata[] lns = new kitdata[202];
+		public epos.partdata.kitdata[] lns = new epos.partdata.kitdata[202];
 
 		public int NumLines
 		{
@@ -55,13 +55,13 @@ namespace epos
 			// TODO: Add constructor logic here
 			//
 			for (idx = 0; idx < 202; idx++)
-				lns[idx] = new kitdata();
+				lns[idx] = new epos.partdata.kitdata();
 		}
     }
     public class flightlist
     {
         private int mNumLines;
-        public flightdata[] lns = new flightdata[202];
+        public epos.partdata.flightdata[] lns = new epos.partdata.flightdata[202];
 
         public int NumLines
         {
@@ -81,7 +81,7 @@ namespace epos
             // TODO: Add constructor logic here
             //
             for (idx = 0; idx < 202; idx++)
-                lns[idx] = new flightdata();
+                lns[idx] = new epos.partdata.flightdata();
         }
     }
 }

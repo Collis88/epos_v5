@@ -1,4 +1,6 @@
 using System;
+//2016-09-08 SL - 5.000 - V3 to V5 Upgrade
+using System.Collections;
 
 namespace epos
 {
@@ -32,7 +34,6 @@ namespace epos
 		private bool mSelect;
 		private bool mStock;
 		private decimal mDiscount;
-        //private decimal mHeadDiscount;
         private System.Collections.SortedList mOfferData;
 		private int mSaleType;
 		private string mSaleTypeDesc;
@@ -51,6 +52,8 @@ namespace epos
 		private decimal mElucidPrice;
 		private bool mGiftPart;
 		private int mPartType;
+		//2016-09-08 SL - 5.000 - V3 to V5 Upgrade
+		private SortedList mBundleData;
 
 		public string PartNumber
 		{
@@ -532,6 +535,198 @@ namespace epos
 		public partdata(partdata src) {
 			this.copypartdata(src);
 		}
+
+		public class kitdata
+		{
+			private string mReference;
+			private string mPart;
+			//private string mPrice;
+			private int mQuantity;
+			private bool mNewLine;
+			private int mLine;
+
+			public string Reference
+			{
+				get
+				{
+					return this.mReference;
+				}
+				set
+				{
+					mReference = value;
+				}
+			}
+			public string Part
+			{
+				get
+				{
+					return this.mPart;
+				}
+				set
+				{
+					mPart = value;
+				}
+			}
+			public int Quantity
+			{
+				get
+				{
+					return this.mQuantity;
+				}
+				set
+				{
+					mQuantity = value;
+				}
+			}
+			public bool NewLine
+			{
+				get
+				{
+					return this.mNewLine;
+				}
+				set
+				{
+					mNewLine = value;
+				}
+			}
+			public int Line
+			{
+				get
+				{
+					return this.mLine;
+				}
+				set
+				{
+					mLine = value;
+				}
+			}
+		}
+		public class flightdata
+		{
+			private string mFlightCode;
+			private string mAirportCode;
+			private string mAirportDescription;
+			private int mDestinationZone;
+			private string mTaxCode;
+			private string mOutboundDate;
+			private string mInboundDate;
+			private bool mReturnOrder;
+
+			public string FlightCode
+			{
+				get
+				{
+					return this.mFlightCode;
+				}
+				set
+				{
+					mFlightCode = value;
+				}
+			}
+			public string AirportCode
+			{
+				get
+				{
+					return this.mAirportCode;
+				}
+				set
+				{
+					mAirportCode = value;
+				}
+			}
+			public string AirportDescription
+			{
+				get
+				{
+					return this.mAirportDescription;
+				}
+				set
+				{
+					mAirportDescription = value;
+				}
+			}
+			public int DestinationZone
+			{
+				get
+				{
+					return this.mDestinationZone;
+				}
+				set
+				{
+					mDestinationZone = value;
+				}
+			}
+			public string TaxCode
+			{
+				get
+				{
+					return this.mTaxCode;
+				}
+				set
+				{
+					mTaxCode = value;
+				}
+			}
+			public string OutboundDate
+			{
+				get
+				{
+					return this.mOutboundDate;
+				}
+				set
+				{
+					mOutboundDate = value;
+				}
+			}
+			public string InboundDate
+			{
+				get
+				{
+					return this.mInboundDate;
+				}
+				set
+				{
+					mInboundDate = value;
+				}
+			}
+			public bool ReturnOrder
+			{
+				get
+				{
+					return this.mReturnOrder;
+				}
+				set
+				{
+					mReturnOrder = value;
+				}
+			}
+			public flightdata()
+			{
+				mFlightCode = "";
+				mAirportCode = "";
+				mAirportDescription = "";
+				mDestinationZone = -1;
+				mTaxCode = "";
+				mOutboundDate = "";
+				mInboundDate = "";
+				mReturnOrder = false;
+			}
+		}
+		//2016-09-08 SL - 5.000 - V3 to V5 Upgrade >>
+		public SortedList BundleData
+		{
+			get
+			{
+				return this.mBundleData;
+			}
+			set
+			{
+				mBundleData = value;
+			}
+		}
+		//2016-09-08 SL - 5.000 - V3 to V5 Upgrade ^^
+
+
 		public void copypartdata(partdata src) {
 			this.mDescription = src.Description;
 			this.mFullDescription = src.FullDescription;
@@ -569,180 +764,4 @@ namespace epos
 			this.mPartType = src.PartType;
 		}
 	}
-	public class kitdata
-	{
-        private string mReference;
-        private string mPart;
-		//private string mPrice;
-        private int mQuantity;
-        private bool mNewLine;
-        private int mLine;
-
-		public string Reference
-		{
-			get
-			{
-				return this.mReference;
-			}
-			set
-			{
-				mReference = value;
-			}
-		}
-		public string Part
-		{
-			get
-			{
-				return this.mPart;
-			}
-			set
-			{
-				mPart = value;
-			}
-		}
-		public int Quantity
-		{
-			get
-			{
-				return this.mQuantity;
-			}
-			set
-			{
-				mQuantity = value;
-			}
-		}
-		public bool NewLine
-		{
-			get
-			{
-				return this.mNewLine;
-			}
-			set
-			{
-				mNewLine = value;
-			}
-		}
-		public int Line
-		{
-			get
-			{
-				return this.mLine;
-			}
-			set
-			{
-				mLine = value;
-			}
-		}
-	}
-    public class flightdata
-    {
-        private string mFlightCode;
-        private string mAirportCode;
-        private string mAirportDescription;
-        private int mDestinationZone;
-        private string mTaxCode;
-        private string mOutboundDate;
-        private string mInboundDate;
-        private bool mReturnOrder;
-
-		public string FlightCode
-		{
-			get
-			{
-				return this.mFlightCode;
-			}
-			set
-			{
-				mFlightCode = value;
-			}
-		}
-		public string AirportCode
-		{
-			get
-			{
-				return this.mAirportCode;
-			}
-			set
-			{
-				mAirportCode = value;
-			}
-		}
-		public string AirportDescription
-		{
-			get
-			{
-				return this.mAirportDescription;
-			}
-			set
-			{
-				mAirportDescription = value;
-			}
-		}
-		public int DestinationZone
-		{
-			get
-			{
-				return this.mDestinationZone;
-			}
-			set
-			{
-				mDestinationZone = value;
-			}
-		}
-		public string TaxCode
-		{
-			get
-			{
-				return this.mTaxCode;
-			}
-			set
-			{
-				mTaxCode = value;
-			}
-		}
-		public string OutboundDate
-		{
-			get
-			{
-				return this.mOutboundDate;
-			}
-			set
-			{
-				mOutboundDate = value;
-			}
-		}
-        public string InboundDate
-		{
-			get
-			{
-				return this.mInboundDate;
-			}
-			set
-			{
-				mInboundDate = value;
-			}
-		}
-        public bool ReturnOrder
-		{
-			get
-			{
-				return this.mReturnOrder;
-			}
-			set
-			{
-				mReturnOrder = value;
-			}
-		}
-        public flightdata()
-        {
-            mFlightCode = "";
-            mAirportCode = "";
-            mAirportDescription = "";
-            mDestinationZone = -1;
-            mTaxCode = "";
-            mOutboundDate = "";
-            mInboundDate = "";
-            mReturnOrder = false;
-        }
-    }
 }

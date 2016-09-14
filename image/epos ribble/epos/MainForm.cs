@@ -14,7 +14,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using CODISPLib16;
-using eposxml;
 
 namespace epos {
 	/// <summary>
@@ -31,39 +30,33 @@ namespace epos {
 		checkboxleave
 	}
 
-
-	public class MainForm : System.Windows.Forms.Form {
-
-
-		public static string Version = "EPOS Version 2.91";
-
+	public class MainForm : System.Windows.Forms.Form
+	{
+		public static string Version = "EPOS Version 2.92";
 
 
 		private const int pbmax = 30;
 		private const int tbmax = 20;
-		private const int lbmax = 5;
+		private const int lbmax = 6; // up from 5 for address search (state72)
 		private const int cbmax = 5;
 		private const int labmax = 60;
 		private const int stmax = 64;
 		private const int xbmax = 5;
-		private const int statemax = 80;
-		private const int DEFAULT_CHARSET  =       1;
-		private const int OUT_DEFAULT_PRECIS =         0;
-		private const int OUT_DEVICE_PRECIS =         5;
-		private const int CLIP_DEFAULT_PRECIS =    0;
-		private const int CLIP_EMBEDDED    =       (8<<4);
-		private const int DEFAULT_QUALITY =        0;
-		private const int DEFAULT_PITCH =          0;
-		private const int FIXED_PITCH =          1;
+		private const int statemax = 90;
+		private const int DEFAULT_CHARSET  = 1;
+		private const int OUT_DEFAULT_PRECIS = 0;
+		private const int OUT_DEVICE_PRECIS = 5;
+		private const int CLIP_DEFAULT_PRECIS =	0;
+		private const int CLIP_EMBEDDED	= (8<<4);
+		private const int DEFAULT_QUALITY = 0;
+		private const int DEFAULT_PITCH = 0;
+		private const int FIXED_PITCH = 1;
 
 		private const string MBDISC = "DISC";
 		private static bool startupdebug = true;
 
-
-		
 		#region class instance variables
 
-		
 		private instancedata id = new instancedata(17.5M);
 		private instancedata super = new instancedata(17.5M);
 		private elucidxml elucid;
@@ -74,7 +67,7 @@ namespace epos {
 		public custdata printcust;
 		public custdata searchcust;
 		public custdata retcust;
-		
+
 		public menu currmenu = null;
 		public menu rootmenu = null;
 		public menu level1menu = null;
@@ -93,10 +86,10 @@ namespace epos {
 
 		private bool processing_deposit_finance = false;
 
-		
-		
-		#endregion
+		public StreamWriter publicStreamWriter;
+		public string textLine = "";
 
+		#endregion // class instance variables
 
 		#region user interface arrays
 		private PictureBox [] pb1 = new PictureBox[pbmax];
@@ -110,7 +103,7 @@ namespace epos {
 		private Label [] lab1 = new Label[labmax];
 		private bool [] FK_enabled = new bool[20];
 		private string [] FK_value = new string[20];
-		#endregion
+		#endregion // user interface arrays
 
 		private System.Windows.Forms.Timer timer1;
 		private System.Windows.Forms.Panel panel1;
@@ -168,20 +161,15 @@ namespace epos {
 		private System.Windows.Forms.Button PTB27;
 		private System.Windows.Forms.Button PTB26;
 		private System.Windows.Forms.Button PTB25;
-        private System.Windows.Forms.Timer CloseTimer;
-        private Panel emdAlphaPanel;
-        private EMD.VBoard2006.EMDStandard emdStandard1;
-        private Panel emdNumericPanel;
-        private EMD.VBoard2006.EMDNumeric emdNumeric1;
-        private EMD.VBoard2006.EMDVBoardDlg emdvBoardDlg1;
-		FileSystemWatcher watcher;
-
-
-  
+		private System.Windows.Forms.Timer CloseTimer;
+		private Panel emdAlphaPanel;
+		private Panel emdNumericPanel;
+		FileSystemWatcher watcher;  
 
 		[DllImport("DLPORTIO.dll")]
 		protected static extern void DlPortWritePortUchar(UInt32 port, byte val);
 
+		#region kernel32.dll
 		[DllImport("kernel32.dll")]
 		protected static extern int GetPrivateProfileString(
 			string lpAppName,
@@ -191,8 +179,6 @@ namespace epos {
 			int nSize,
 			string lpFileName
 			);
-
-		#region kernel32.dll
 		[DllImport("kernel32.dll", SetLastError = true)]
 		extern private static int WriteFile(IntPtr hFile, byte[] lpBuffer, UInt32 nNumberOfBytesToRead, out Int32 lpNumberOfBytesRead, IntPtr lpOverlapped);
 		[DllImport("kernel32.dll", SetLastError = true)]
@@ -234,7 +220,7 @@ namespace epos {
 			StringBuilder lpString
 			);
 		[DllImport("user32.dll")]
-		protected static extern bool PostMessage(          int hWnd,
+		protected static extern bool PostMessage(		  int hWnd,
 			UInt32 Msg,
 			UInt16 wParam,
 			UInt32 lParam
@@ -263,71 +249,170 @@ namespace epos {
 
 		public delegate bool CallBack(int hwnd, int lParam);
 
-
 		[DllImport("user32")]
-		public static extern int EnumWindows(CallBack x, int y); 
-
-
+		public static extern int EnumWindows(CallBack x, int y);
 
 		#region GDI Imports
 		[DllImport("Gdi32.dll")]
 		protected static extern IntPtr CreateFont(
-			int nHeight,               // height of font
-			int nWidth,                // average character width
-			int nEscapement,           // angle of escapement
-			int nOrientation,          // base-line orientation angle
-			int fnWeight,              // font weight
-			UInt32 fdwItalic,           // italic attribute option
-			UInt32 fdwUnderline,        // underline attribute option
-			UInt32 fdwStrikeOut,        // strikeout attribute option
-			UInt32 fdwCharSet,          // character set identifier
+			int nHeight,			   // height of font
+			int nWidth,				// average character width
+			int nEscapement,		   // angle of escapement
+			int nOrientation,		  // base-line orientation angle
+			int fnWeight,			  // font weight
+			UInt32 fdwItalic,		   // italic attribute option
+			UInt32 fdwUnderline,		// underline attribute option
+			UInt32 fdwStrikeOut,		// strikeout attribute option
+			UInt32 fdwCharSet,		  // character set identifier
 			UInt32 fdwOutputPrecision,  // output precision
-			UInt32 fdwClipPrecision,    // clipping precision
-			UInt32 fdwQuality,          // output quality
+			UInt32 fdwClipPrecision,	// clipping precision
+			UInt32 fdwQuality,		  // output quality
 			UInt32 fdwPitchAndFamily,   // pitch and family
-			string lpszFace           // typeface name
+			string lpszFace		   // typeface name
 			);
 		[DllImport("Gdi32.dll")]
 		protected static extern IntPtr CreateDC(
-			string lpszDriver,        // driver name
-			string lpszDevice,        // device name
-			string lpszOutput,        // not used; should be NULL
+			string lpszDriver,		// driver name
+			string lpszDevice,		// device name
+			string lpszOutput,		// not used; should be NULL
 			UInt32 lpInitData  // optional printer data
 			);
 		[DllImport("Gdi32.dll")]
 		protected static extern int Escape(
-			IntPtr hdc,           // handle to DC
-			int nEscape,       // escape function
-			int cbInput,       // size of input structure
+			IntPtr hdc,		   // handle to DC
+			int nEscape,	   // escape function
+			int cbInput,	   // size of input structure
 			string lpvInData,  // input structure
 			IntPtr lpvOutData  // output structure
 			);
+
+#if PRINT_TO_FILE
+
+		public int StartDebugReceipt()
+		{
+			try
+			{
+				if (Directory.Exists(tracedirectory))
+				{
+					// create stream if new receipt
+					//if (publicStreamWriter == null)
+					{
+						DateTime dtTimeNow = DateTime.Now;
+
+						string stringTimeNow = dtTimeNow.ToString("yyMMddHHmmss");
+
+						string DirectoryDay = dtTimeNow.ToString("yyMMdd");
+
+						string path = tracedirectory 
+							+ "\\"
+							+ DirectoryDay.Trim()
+							+ "\\POS_PTF"
+							+ stringTimeNow.Trim() 
+							+ ".txt";
+
+						publicStreamWriter = new StreamWriter(path, false);
+						publicStreamWriter.Write("*START*\r\n");
+					}
+				}
+			}
+			catch (Exception thisException)
+			{
+				ydebug("StartDebugReceipt : " + thisException.Message);
+				return -1;
+			}
+			return 0;
+		}
+
+#endif
+
 		[DllImport("Gdi32.dll")]
 		protected static extern int StartDoc(
-			IntPtr hdc,              // handle to DC
+			IntPtr hdc,			  // handle to DC
 			UInt32 lpdi   // contains file names
 			);
+
+
+
 		[DllImport("Gdi32.dll")]
 		protected static extern int SelectObject(
-			IntPtr hdc,          // handle to DC
+			IntPtr hdc,		  // handle to DC
 			IntPtr hgdiobj   // handle to object
 			);
+
+#if PRINT_TO_FILE
+
+		public int EndDebugReceipt()
+		{
+			try
+			{
+				if (textLine != "")
+				{
+					publicStreamWriter.Write(textLine);
+				}
+				publicStreamWriter.Write("*END*");				
+				publicStreamWriter.Close();
 				
+			}
+			catch (Exception thisException)
+			{
+				ydebug("EndDebugReceipt: "+ thisException.Message);
+				return -1;
+			}
+			return 0;
+		}
+
+#endif
+
 		[DllImport("Gdi32.dll")]
 		protected static extern int EndDoc(
 			IntPtr hdc   // handle to DC
 			);
 
 
+
+#if PRINT_TO_FILE
+
+		public bool TextOut(IntPtr hdc,	int nXStart, int nYStart, string lpString, int cbString)
+		{
+			try
+			{
+				if (Directory.Exists(tracedirectory))
+				{
+					// create stream if new receipt
+					if (publicStreamWriter != null)
+					{
+						textLine = nXStart.ToString();
+						textLine += ",";
+						textLine += nYStart.ToString();
+						textLine += ",\t";
+						textLine += lpString;
+						textLine += "\r\n";
+
+						publicStreamWriter.Write(textLine);
+					}
+				}
+			}
+			catch (Exception thisException)
+			{
+				ydebug("TextOut: " + textLine + " : " + thisException.Message);
+				return false;
+			}
+			finally
+			{
+			}
+			return true;
+		}
+
+#else
 		[DllImport("Gdi32.dll")]
 		protected static extern bool TextOut(
-			IntPtr hdc,           // handle to DC
-			int nXStart,       // x-coordinate of starting position
-			int nYStart,       // y-coordinate of starting position
+			IntPtr hdc,		   // handle to DC
+			int nXStart,	   // x-coordinate of starting position
+			int nYStart,	   // y-coordinate of starting position
 			string lpString,  // character string
-			int cbString       // number of characters
+			int cbString	   // number of characters
 			);
-
+#endif
 		[DllImport("Gdi32.dll")]
 		protected static extern bool DeleteObject(
 			IntPtr hObject   // handle to graphic object
@@ -340,9 +425,9 @@ namespace epos {
 
 		[DllImport("Gdi32.dll")]
 		protected static extern IntPtr CreateCompatibleBitmap(
-			IntPtr hdc,        // handle to DC
-			int nWidth,     // width of bitmap, in pixels
-			int nHeight     // height of bitmap, in pixels
+			IntPtr hdc,		// handle to DC
+			int nWidth,	 // width of bitmap, in pixels
+			int nHeight	 // height of bitmap, in pixels
 			);
 
 		[DllImport("Gdi32.dll")]
@@ -364,33 +449,28 @@ namespace epos {
 			);
 		[DllImport("Gdi32.dll")]
 		protected static extern int GetDeviceCaps(
-			IntPtr hdc,     // handle to DC
+			IntPtr hdc,	 // handle to DC
 			int nIndex   // index of capability
 			);
 		[DllImport("Gdi32.dll")]
 		protected static extern bool StretchBlt(
-			IntPtr hdcDest,      // handle to destination DC
+			IntPtr hdcDest,	  // handle to destination DC
 			int nXOriginDest, // x-coord of destination upper-left corner
 			int nYOriginDest, // y-coord of destination upper-left corner
 			int nWidthDest,   // width of destination rectangle
 			int nHeightDest,  // height of destination rectangle
-			IntPtr hdcSrc,       // handle to source DC
+			IntPtr hdcSrc,	   // handle to source DC
 			int nXOriginSrc,  // x-coord of source upper-left corner
 			int nYOriginSrc,  // y-coord of source upper-left corner
-			int nWidthSrc,    // width of source rectangle
+			int nWidthSrc,	// width of source rectangle
 			int nHeightSrc,   // height of source rectangle
-			UInt32 dwRop       // raster operation code
+			UInt32 dwRop	   // raster operation code
 			);
-		#endregion
-
-
+		#endregion // GDI Imports
 
 		#region local instance variables
 		private string m_item_val;
 		private string m_tot_val;
-
-		
-		
 		
 		private int pbcount;
 		private int tbcount;
@@ -435,7 +515,7 @@ namespace epos {
 		private double trace_days = 0.00;
 
 		private bool debugging;
-        // use any on screen keypad
+		// use any on screen keypad
 		private bool onscreenkeypad;
 
 		private bool alreadygotcustomer = true;
@@ -477,6 +557,8 @@ namespace epos {
 
 		private bool refund = false;
 		private bool currlineisnegative = false;
+
+		private bool inReturnScanMode = false;
 
 		private bool VatDialogue = false;
 		private int PrintVatAnalysis = 0;
@@ -569,9 +651,11 @@ namespace epos {
 		private bool reprintreturns = false;
 		private bool reprintaccounts = false;
 		private bool printsignatureline = false;
+		private bool printsignaturereturn = false;
 		private bool reprintcollect = false;
 
 		private bool treatvouchersascash = false;
+		private bool showvoucherinfo = true;
 
 		private decimal cashlimitfactor = 50.0M;
 
@@ -590,19 +674,18 @@ namespace epos {
 		private string cfnamelayout = "10,6";
 		private string csnamelayout = "18,28";
 		private string cpostcodelayout = "47,8";
-        private string caddresslayout = "47,0";
-        private string ccompanylayout = "47,0";
-        private string cphonedaylayout = "47,0";
-        private string cemaillayout = "47,0";
-        private string ccitylayout = "47,0";
+		private string caddresslayout = "47,0";
+		private string ccompanylayout = "47,0";
+		private string cphonedaylayout = "47,0";
+		private string cemaillayout = "47,0";
+		private string ccitylayout = "47,0";
 
-        private string ctradeaccountlayout = "47,0";
-        private string cmedicalexemptionlayout = "47,0";
+		private string ctradeaccountlayout = "47,0";
+		private string cmedicalexemptionlayout = "47,0";
 
 		#endregion
 
 		private System.ComponentModel.IContainer components;
-
 
 		#region MainForm
 		public MainForm(string inifile) {
@@ -751,7 +834,7 @@ namespace epos {
 					CloseTimer.Enabled = true;
 					return;
 				} else {
-
+					// chip and pins write receipt
 					deleteYespayFiles();
 					watcher = new FileSystemWatcher(OciusDirectory,"Receipt*.txt");
 					watcher.NotifyFilter = NotifyFilters.LastAccess | NotifyFilters.LastWrite 
@@ -768,15 +851,9 @@ namespace epos {
 			// TODO: Add any constructor code after InitializeComponent call
 			//
 			xdebug("12");
-		
 
-			
-			xdebug("13");
-		
-		
+			xdebug("13");		
 		}
-
-
 
 		/// <summary>
 		/// Clean up any resources being used.
@@ -790,7 +867,8 @@ namespace epos {
 			base.Dispose( disposing );
 		}
 
-		#endregion
+		#endregion // MainForm
+
 		#region YesPayWatcher
 		private void startWatcher() {
 			if (YesDirectory != "") {
@@ -961,857 +1039,807 @@ namespace epos {
 			debugccmsg("End Print " + fn);
 
 		}
-		#endregion
+		#endregion // YesPayWatcher
+
 		#region Windows Form Designer generated code
 		/// <summary>
 		/// Required method for Designer support - do not modify
 		/// the contents of this method with the code editor.
 		/// </summary>
 		private void InitializeComponent() {
-            this.components = new System.ComponentModel.Container();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            this.timer1 = new System.Windows.Forms.Timer(this.components);
-            this.panel1 = new System.Windows.Forms.Panel();
-            this.buttonback = new System.Windows.Forms.Button();
-            this.buttonup = new System.Windows.Forms.Button();
-            this.buttondown = new System.Windows.Forms.Button();
-            this.buttondot = new System.Windows.Forms.Button();
-            this.buttonenter = new System.Windows.Forms.Button();
-            this.button0 = new System.Windows.Forms.Button();
-            this.button9 = new System.Windows.Forms.Button();
-            this.button8 = new System.Windows.Forms.Button();
-            this.button7 = new System.Windows.Forms.Button();
-            this.button6 = new System.Windows.Forms.Button();
-            this.button5 = new System.Windows.Forms.Button();
-            this.button4 = new System.Windows.Forms.Button();
-            this.button3 = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
-            this.button1 = new System.Windows.Forms.Button();
-            this.PanelNotes = new System.Windows.Forms.Panel();
-            this.ListNotes = new System.Windows.Forms.TextBox();
-            this.ButtonNotes = new System.Windows.Forms.Button();
-            this.odbcConnection1 = new System.Data.Odbc.OdbcConnection();
-            this.PanelTouch = new System.Windows.Forms.Panel();
-            this.PTB32 = new System.Windows.Forms.Button();
-            this.PTB31 = new System.Windows.Forms.Button();
-            this.PTB30 = new System.Windows.Forms.Button();
-            this.PTB29 = new System.Windows.Forms.Button();
-            this.PTB28 = new System.Windows.Forms.Button();
-            this.PTB27 = new System.Windows.Forms.Button();
-            this.PTB26 = new System.Windows.Forms.Button();
-            this.PTB25 = new System.Windows.Forms.Button();
-            this.PTB24 = new System.Windows.Forms.Button();
-            this.PTB23 = new System.Windows.Forms.Button();
-            this.PTB22 = new System.Windows.Forms.Button();
-            this.PTB21 = new System.Windows.Forms.Button();
-            this.PTB20 = new System.Windows.Forms.Button();
-            this.PTB19 = new System.Windows.Forms.Button();
-            this.PTB18 = new System.Windows.Forms.Button();
-            this.PTB17 = new System.Windows.Forms.Button();
-            this.PTB16 = new System.Windows.Forms.Button();
-            this.PTB15 = new System.Windows.Forms.Button();
-            this.PTB14 = new System.Windows.Forms.Button();
-            this.PTB13 = new System.Windows.Forms.Button();
-            this.PTB12 = new System.Windows.Forms.Button();
-            this.PTB11 = new System.Windows.Forms.Button();
-            this.PTB10 = new System.Windows.Forms.Button();
-            this.PTB9 = new System.Windows.Forms.Button();
-            this.PTB8 = new System.Windows.Forms.Button();
-            this.PTB7 = new System.Windows.Forms.Button();
-            this.PTB6 = new System.Windows.Forms.Button();
-            this.PTB5 = new System.Windows.Forms.Button();
-            this.PTB4 = new System.Windows.Forms.Button();
-            this.PTB3 = new System.Windows.Forms.Button();
-            this.PTB2 = new System.Windows.Forms.Button();
-            this.PTB1 = new System.Windows.Forms.Button();
-            this.CloseTimer = new System.Windows.Forms.Timer(this.components);
-            this.emdAlphaPanel = new System.Windows.Forms.Panel();
-            this.emdStandard1 = new EMD.VBoard2006.EMDStandard();
-            this.emdNumericPanel = new System.Windows.Forms.Panel();
-            this.emdNumeric1 = new EMD.VBoard2006.EMDNumeric();
-            this.emdvBoardDlg1 = new EMD.VBoard2006.EMDVBoardDlg(this.components);
-            this.panel1.SuspendLayout();
-            this.PanelNotes.SuspendLayout();
-            this.PanelTouch.SuspendLayout();
-            this.emdAlphaPanel.SuspendLayout();
-            this.emdNumericPanel.SuspendLayout();
-            this.SuspendLayout();
-            // 
-            // timer1
-            // 
-            this.timer1.Interval = 60000;
-            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
-            // 
-            // panel1
-            // 
-            this.panel1.BackColor = System.Drawing.Color.Silver;
-            this.panel1.Controls.Add(this.buttonback);
-            this.panel1.Controls.Add(this.buttonup);
-            this.panel1.Controls.Add(this.buttondown);
-            this.panel1.Controls.Add(this.buttondot);
-            this.panel1.Controls.Add(this.buttonenter);
-            this.panel1.Controls.Add(this.button0);
-            this.panel1.Controls.Add(this.button9);
-            this.panel1.Controls.Add(this.button8);
-            this.panel1.Controls.Add(this.button7);
-            this.panel1.Controls.Add(this.button6);
-            this.panel1.Controls.Add(this.button5);
-            this.panel1.Controls.Add(this.button4);
-            this.panel1.Controls.Add(this.button3);
-            this.panel1.Controls.Add(this.button2);
-            this.panel1.Controls.Add(this.button1);
-            this.panel1.Location = new System.Drawing.Point(4, 210);
-            this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(410, 232);
-            this.panel1.TabIndex = 0;
-            this.panel1.Visible = false;
-            // 
-            // buttonback
-            // 
-            this.buttonback.CausesValidation = false;
-            this.buttonback.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.buttonback.Location = new System.Drawing.Point(320, 128);
-            this.buttonback.Name = "buttonback";
-            this.buttonback.Size = new System.Drawing.Size(72, 40);
-            this.buttonback.TabIndex = 14;
-            this.buttonback.TabStop = false;
-            this.buttonback.Tag = "{BKSP}";
-            this.buttonback.Text = "BACK";
-            this.buttonback.Click += new System.EventHandler(this.button1_Click);
-            this.buttonback.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // buttonup
-            // 
-            this.buttonup.CausesValidation = false;
-            this.buttonup.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.buttonup.Image = ((System.Drawing.Image)(resources.GetObject("buttonup.Image")));
-            this.buttonup.Location = new System.Drawing.Point(320, 16);
-            this.buttonup.Name = "buttonup";
-            this.buttonup.Size = new System.Drawing.Size(72, 40);
-            this.buttonup.TabIndex = 13;
-            this.buttonup.TabStop = false;
-            this.buttonup.Tag = "{UP}";
-            this.buttonup.Click += new System.EventHandler(this.button1_Click);
-            this.buttonup.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // buttondown
-            // 
-            this.buttondown.CausesValidation = false;
-            this.buttondown.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.buttondown.Location = new System.Drawing.Point(320, 72);
-            this.buttondown.Name = "buttondown";
-            this.buttondown.Size = new System.Drawing.Size(72, 40);
-            this.buttondown.TabIndex = 12;
-            this.buttondown.TabStop = false;
-            this.buttondown.Tag = "{DOWN}";
-            this.buttondown.Text = "DN";
-            this.buttondown.Click += new System.EventHandler(this.button1_Click);
-            this.buttondown.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // buttondot
-            // 
-            this.buttondot.CausesValidation = false;
-            this.buttondot.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.buttondot.Location = new System.Drawing.Point(208, 184);
-            this.buttondot.Name = "buttondot";
-            this.buttondot.Size = new System.Drawing.Size(72, 40);
-            this.buttondot.TabIndex = 11;
-            this.buttondot.TabStop = false;
-            this.buttondot.Tag = ".";
-            this.buttondot.Text = ".";
-            this.buttondot.TextAlign = System.Drawing.ContentAlignment.BottomCenter;
-            this.buttondot.Click += new System.EventHandler(this.button1_Click);
-            this.buttondot.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // buttonenter
-            // 
-            this.buttonenter.CausesValidation = false;
-            this.buttonenter.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.buttonenter.Location = new System.Drawing.Point(320, 184);
-            this.buttonenter.Name = "buttonenter";
-            this.buttonenter.Size = new System.Drawing.Size(72, 40);
-            this.buttonenter.TabIndex = 10;
-            this.buttonenter.TabStop = false;
-            this.buttonenter.Tag = "{ENTER}";
-            this.buttonenter.Text = "Enter";
-            this.buttonenter.Click += new System.EventHandler(this.button1_Click);
-            this.buttonenter.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button0
-            // 
-            this.button0.CausesValidation = false;
-            this.button0.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button0.Location = new System.Drawing.Point(16, 184);
-            this.button0.Name = "button0";
-            this.button0.Size = new System.Drawing.Size(168, 40);
-            this.button0.TabIndex = 9;
-            this.button0.TabStop = false;
-            this.button0.Tag = "0";
-            this.button0.Text = "0";
-            this.button0.Click += new System.EventHandler(this.button1_Click);
-            this.button0.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button9
-            // 
-            this.button9.CausesValidation = false;
-            this.button9.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button9.Location = new System.Drawing.Point(208, 16);
-            this.button9.Name = "button9";
-            this.button9.Size = new System.Drawing.Size(72, 40);
-            this.button9.TabIndex = 8;
-            this.button9.TabStop = false;
-            this.button9.Tag = "9";
-            this.button9.Text = "9";
-            this.button9.Click += new System.EventHandler(this.button1_Click);
-            this.button9.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button8
-            // 
-            this.button8.CausesValidation = false;
-            this.button8.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button8.Location = new System.Drawing.Point(112, 16);
-            this.button8.Name = "button8";
-            this.button8.Size = new System.Drawing.Size(72, 40);
-            this.button8.TabIndex = 7;
-            this.button8.TabStop = false;
-            this.button8.Tag = "8";
-            this.button8.Text = "8";
-            this.button8.Click += new System.EventHandler(this.button1_Click);
-            this.button8.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button7
-            // 
-            this.button7.BackColor = System.Drawing.Color.Silver;
-            this.button7.CausesValidation = false;
-            this.button7.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button7.ForeColor = System.Drawing.Color.Black;
-            this.button7.Location = new System.Drawing.Point(16, 16);
-            this.button7.Name = "button7";
-            this.button7.Size = new System.Drawing.Size(72, 40);
-            this.button7.TabIndex = 6;
-            this.button7.TabStop = false;
-            this.button7.Tag = "7";
-            this.button7.Text = "7";
-            this.button7.UseVisualStyleBackColor = false;
-            this.button7.Click += new System.EventHandler(this.button1_Click);
-            this.button7.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button6
-            // 
-            this.button6.CausesValidation = false;
-            this.button6.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button6.Location = new System.Drawing.Point(208, 72);
-            this.button6.Name = "button6";
-            this.button6.Size = new System.Drawing.Size(72, 40);
-            this.button6.TabIndex = 5;
-            this.button6.TabStop = false;
-            this.button6.Tag = "6";
-            this.button6.Text = "6";
-            this.button6.Click += new System.EventHandler(this.button1_Click);
-            this.button6.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button5
-            // 
-            this.button5.CausesValidation = false;
-            this.button5.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button5.Location = new System.Drawing.Point(112, 72);
-            this.button5.Name = "button5";
-            this.button5.Size = new System.Drawing.Size(72, 40);
-            this.button5.TabIndex = 4;
-            this.button5.TabStop = false;
-            this.button5.Tag = "5";
-            this.button5.Text = "5";
-            this.button5.Click += new System.EventHandler(this.button1_Click);
-            this.button5.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button4
-            // 
-            this.button4.CausesValidation = false;
-            this.button4.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button4.Location = new System.Drawing.Point(16, 72);
-            this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(72, 40);
-            this.button4.TabIndex = 3;
-            this.button4.TabStop = false;
-            this.button4.Tag = "4";
-            this.button4.Text = "4";
-            this.button4.Click += new System.EventHandler(this.button1_Click);
-            this.button4.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button3
-            // 
-            this.button3.CausesValidation = false;
-            this.button3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button3.Location = new System.Drawing.Point(208, 128);
-            this.button3.Name = "button3";
-            this.button3.Size = new System.Drawing.Size(72, 40);
-            this.button3.TabIndex = 2;
-            this.button3.TabStop = false;
-            this.button3.Tag = "3";
-            this.button3.Text = "3";
-            this.button3.Click += new System.EventHandler(this.button1_Click);
-            this.button3.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button2
-            // 
-            this.button2.CausesValidation = false;
-            this.button2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button2.Location = new System.Drawing.Point(112, 128);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(72, 40);
-            this.button2.TabIndex = 1;
-            this.button2.TabStop = false;
-            this.button2.Tag = "2";
-            this.button2.Text = "2";
-            this.button2.Click += new System.EventHandler(this.button1_Click);
-            this.button2.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // button1
-            // 
-            this.button1.CausesValidation = false;
-            this.button1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button1.Location = new System.Drawing.Point(16, 128);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(72, 40);
-            this.button1.TabIndex = 0;
-            this.button1.TabStop = false;
-            this.button1.Tag = "1";
-            this.button1.Text = "1";
-            this.button1.Click += new System.EventHandler(this.button1_Click);
-            this.button1.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
-            // 
-            // PanelNotes
-            // 
-            this.PanelNotes.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-            this.PanelNotes.Controls.Add(this.ListNotes);
-            this.PanelNotes.Controls.Add(this.ButtonNotes);
-            this.PanelNotes.Location = new System.Drawing.Point(524, 4);
-            this.PanelNotes.Name = "PanelNotes";
-            this.PanelNotes.Size = new System.Drawing.Size(264, 296);
-            this.PanelNotes.TabIndex = 1;
-            this.PanelNotes.Visible = false;
-            // 
-            // ListNotes
-            // 
-            this.ListNotes.Enabled = false;
-            this.ListNotes.Location = new System.Drawing.Point(0, 0);
-            this.ListNotes.Multiline = true;
-            this.ListNotes.Name = "ListNotes";
-            this.ListNotes.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.ListNotes.Size = new System.Drawing.Size(256, 248);
-            this.ListNotes.TabIndex = 3;
-            this.ListNotes.Text = "textBox1";
-            // 
-            // ButtonNotes
-            // 
-            this.ButtonNotes.Location = new System.Drawing.Point(64, 256);
-            this.ButtonNotes.Name = "ButtonNotes";
-            this.ButtonNotes.Size = new System.Drawing.Size(144, 32);
-            this.ButtonNotes.TabIndex = 1;
-            this.ButtonNotes.Text = "OK";
-            this.ButtonNotes.Click += new System.EventHandler(this.ButtonNotes_Click);
-            // 
-            // odbcConnection1
-            // 
-            this.odbcConnection1.ConnectionString = "DSN=ELUCID;UID=sa;DATABASE=eluciddbv8;APP=Microsoft® Visual Studio .NET;WSID=VAIO" +
-                ";PWD=saturn5a";
-            // 
-            // PanelTouch
-            // 
-            this.PanelTouch.Controls.Add(this.PTB32);
-            this.PanelTouch.Controls.Add(this.PTB31);
-            this.PanelTouch.Controls.Add(this.PTB30);
-            this.PanelTouch.Controls.Add(this.PTB29);
-            this.PanelTouch.Controls.Add(this.PTB28);
-            this.PanelTouch.Controls.Add(this.PTB27);
-            this.PanelTouch.Controls.Add(this.PTB26);
-            this.PanelTouch.Controls.Add(this.PTB25);
-            this.PanelTouch.Controls.Add(this.PTB24);
-            this.PanelTouch.Controls.Add(this.PTB23);
-            this.PanelTouch.Controls.Add(this.PTB22);
-            this.PanelTouch.Controls.Add(this.PTB21);
-            this.PanelTouch.Controls.Add(this.PTB20);
-            this.PanelTouch.Controls.Add(this.PTB19);
-            this.PanelTouch.Controls.Add(this.PTB18);
-            this.PanelTouch.Controls.Add(this.PTB17);
-            this.PanelTouch.Controls.Add(this.PTB16);
-            this.PanelTouch.Controls.Add(this.PTB15);
-            this.PanelTouch.Controls.Add(this.PTB14);
-            this.PanelTouch.Controls.Add(this.PTB13);
-            this.PanelTouch.Controls.Add(this.PTB12);
-            this.PanelTouch.Controls.Add(this.PTB11);
-            this.PanelTouch.Controls.Add(this.PTB10);
-            this.PanelTouch.Controls.Add(this.PTB9);
-            this.PanelTouch.Controls.Add(this.PTB8);
-            this.PanelTouch.Controls.Add(this.PTB7);
-            this.PanelTouch.Controls.Add(this.PTB6);
-            this.PanelTouch.Controls.Add(this.PTB5);
-            this.PanelTouch.Controls.Add(this.PTB4);
-            this.PanelTouch.Controls.Add(this.PTB3);
-            this.PanelTouch.Controls.Add(this.PTB2);
-            this.PanelTouch.Controls.Add(this.PTB1);
-            this.PanelTouch.Location = new System.Drawing.Point(4, 4);
-            this.PanelTouch.Name = "PanelTouch";
-            this.PanelTouch.Size = new System.Drawing.Size(496, 200);
-            this.PanelTouch.TabIndex = 2;
-            // 
-            // PTB32
-            // 
-            this.PTB32.Enabled = false;
-            this.PTB32.Location = new System.Drawing.Point(400, 128);
-            this.PTB32.Name = "PTB32";
-            this.PTB32.Size = new System.Drawing.Size(56, 40);
-            this.PTB32.TabIndex = 31;
-            this.PTB32.Tag = "31";
-            this.PTB32.Text = "PTB32";
-            this.PTB32.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB31
-            // 
-            this.PTB31.Enabled = false;
-            this.PTB31.Location = new System.Drawing.Point(344, 128);
-            this.PTB31.Name = "PTB31";
-            this.PTB31.Size = new System.Drawing.Size(56, 40);
-            this.PTB31.TabIndex = 30;
-            this.PTB31.Tag = "30";
-            this.PTB31.Text = "PTB31";
-            this.PTB31.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB30
-            // 
-            this.PTB30.Enabled = false;
-            this.PTB30.Location = new System.Drawing.Point(288, 128);
-            this.PTB30.Name = "PTB30";
-            this.PTB30.Size = new System.Drawing.Size(56, 40);
-            this.PTB30.TabIndex = 29;
-            this.PTB30.Tag = "29";
-            this.PTB30.Text = "PTB30";
-            this.PTB30.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB29
-            // 
-            this.PTB29.Enabled = false;
-            this.PTB29.Location = new System.Drawing.Point(232, 128);
-            this.PTB29.Name = "PTB29";
-            this.PTB29.Size = new System.Drawing.Size(56, 40);
-            this.PTB29.TabIndex = 28;
-            this.PTB29.Tag = "28";
-            this.PTB29.Text = "PTB29";
-            this.PTB29.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB28
-            // 
-            this.PTB28.Enabled = false;
-            this.PTB28.Location = new System.Drawing.Point(176, 128);
-            this.PTB28.Name = "PTB28";
-            this.PTB28.Size = new System.Drawing.Size(56, 40);
-            this.PTB28.TabIndex = 27;
-            this.PTB28.Tag = "27";
-            this.PTB28.Text = "PTB28";
-            this.PTB28.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB27
-            // 
-            this.PTB27.Enabled = false;
-            this.PTB27.Location = new System.Drawing.Point(120, 128);
-            this.PTB27.Name = "PTB27";
-            this.PTB27.Size = new System.Drawing.Size(56, 40);
-            this.PTB27.TabIndex = 26;
-            this.PTB27.Tag = "26";
-            this.PTB27.Text = "PTB27";
-            this.PTB27.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB26
-            // 
-            this.PTB26.Enabled = false;
-            this.PTB26.Location = new System.Drawing.Point(64, 128);
-            this.PTB26.Name = "PTB26";
-            this.PTB26.Size = new System.Drawing.Size(56, 40);
-            this.PTB26.TabIndex = 25;
-            this.PTB26.Tag = "25";
-            this.PTB26.Text = "PTB26";
-            this.PTB26.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB25
-            // 
-            this.PTB25.Enabled = false;
-            this.PTB25.Location = new System.Drawing.Point(8, 128);
-            this.PTB25.Name = "PTB25";
-            this.PTB25.Size = new System.Drawing.Size(56, 40);
-            this.PTB25.TabIndex = 24;
-            this.PTB25.Tag = "24";
-            this.PTB25.Text = "PTB25";
-            this.PTB25.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB24
-            // 
-            this.PTB24.Enabled = false;
-            this.PTB24.Location = new System.Drawing.Point(400, 88);
-            this.PTB24.Name = "PTB24";
-            this.PTB24.Size = new System.Drawing.Size(56, 40);
-            this.PTB24.TabIndex = 23;
-            this.PTB24.Tag = "23";
-            this.PTB24.Text = "PTB24";
-            this.PTB24.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB23
-            // 
-            this.PTB23.Enabled = false;
-            this.PTB23.Location = new System.Drawing.Point(344, 88);
-            this.PTB23.Name = "PTB23";
-            this.PTB23.Size = new System.Drawing.Size(56, 40);
-            this.PTB23.TabIndex = 22;
-            this.PTB23.Tag = "22";
-            this.PTB23.Text = "PTB23";
-            this.PTB23.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB22
-            // 
-            this.PTB22.Enabled = false;
-            this.PTB22.Location = new System.Drawing.Point(288, 88);
-            this.PTB22.Name = "PTB22";
-            this.PTB22.Size = new System.Drawing.Size(56, 40);
-            this.PTB22.TabIndex = 21;
-            this.PTB22.Tag = "21";
-            this.PTB22.Text = "PTB22";
-            this.PTB22.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB21
-            // 
-            this.PTB21.Enabled = false;
-            this.PTB21.Location = new System.Drawing.Point(232, 88);
-            this.PTB21.Name = "PTB21";
-            this.PTB21.Size = new System.Drawing.Size(56, 40);
-            this.PTB21.TabIndex = 20;
-            this.PTB21.Tag = "20";
-            this.PTB21.Text = "PTB21";
-            this.PTB21.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB20
-            // 
-            this.PTB20.Enabled = false;
-            this.PTB20.Location = new System.Drawing.Point(176, 88);
-            this.PTB20.Name = "PTB20";
-            this.PTB20.Size = new System.Drawing.Size(56, 40);
-            this.PTB20.TabIndex = 19;
-            this.PTB20.Tag = "19";
-            this.PTB20.Text = "PTB20";
-            this.PTB20.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB19
-            // 
-            this.PTB19.Enabled = false;
-            this.PTB19.Location = new System.Drawing.Point(120, 88);
-            this.PTB19.Name = "PTB19";
-            this.PTB19.Size = new System.Drawing.Size(56, 40);
-            this.PTB19.TabIndex = 18;
-            this.PTB19.Tag = "18";
-            this.PTB19.Text = "PTB19";
-            this.PTB19.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB18
-            // 
-            this.PTB18.Enabled = false;
-            this.PTB18.Location = new System.Drawing.Point(64, 88);
-            this.PTB18.Name = "PTB18";
-            this.PTB18.Size = new System.Drawing.Size(56, 40);
-            this.PTB18.TabIndex = 17;
-            this.PTB18.Tag = "17";
-            this.PTB18.Text = "PTB18";
-            this.PTB18.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB17
-            // 
-            this.PTB17.Enabled = false;
-            this.PTB17.Location = new System.Drawing.Point(8, 88);
-            this.PTB17.Name = "PTB17";
-            this.PTB17.Size = new System.Drawing.Size(56, 40);
-            this.PTB17.TabIndex = 16;
-            this.PTB17.Tag = "16";
-            this.PTB17.Text = "PTB17";
-            this.PTB17.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB16
-            // 
-            this.PTB16.Enabled = false;
-            this.PTB16.Location = new System.Drawing.Point(400, 48);
-            this.PTB16.Name = "PTB16";
-            this.PTB16.Size = new System.Drawing.Size(56, 40);
-            this.PTB16.TabIndex = 15;
-            this.PTB16.Tag = "15";
-            this.PTB16.Text = "PTB16";
-            this.PTB16.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB15
-            // 
-            this.PTB15.Enabled = false;
-            this.PTB15.Location = new System.Drawing.Point(344, 48);
-            this.PTB15.Name = "PTB15";
-            this.PTB15.Size = new System.Drawing.Size(56, 40);
-            this.PTB15.TabIndex = 14;
-            this.PTB15.Tag = "14";
-            this.PTB15.Text = "PTB15";
-            this.PTB15.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB14
-            // 
-            this.PTB14.Enabled = false;
-            this.PTB14.Location = new System.Drawing.Point(288, 48);
-            this.PTB14.Name = "PTB14";
-            this.PTB14.Size = new System.Drawing.Size(56, 40);
-            this.PTB14.TabIndex = 13;
-            this.PTB14.Tag = "13";
-            this.PTB14.Text = "PTB14";
-            this.PTB14.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB13
-            // 
-            this.PTB13.Enabled = false;
-            this.PTB13.Location = new System.Drawing.Point(232, 48);
-            this.PTB13.Name = "PTB13";
-            this.PTB13.Size = new System.Drawing.Size(56, 40);
-            this.PTB13.TabIndex = 12;
-            this.PTB13.Tag = "12";
-            this.PTB13.Text = "PTB13";
-            this.PTB13.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB12
-            // 
-            this.PTB12.Enabled = false;
-            this.PTB12.Location = new System.Drawing.Point(176, 48);
-            this.PTB12.Name = "PTB12";
-            this.PTB12.Size = new System.Drawing.Size(56, 40);
-            this.PTB12.TabIndex = 11;
-            this.PTB12.Tag = "11";
-            this.PTB12.Text = "PTB12";
-            this.PTB12.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB11
-            // 
-            this.PTB11.Enabled = false;
-            this.PTB11.Location = new System.Drawing.Point(120, 48);
-            this.PTB11.Name = "PTB11";
-            this.PTB11.Size = new System.Drawing.Size(56, 40);
-            this.PTB11.TabIndex = 10;
-            this.PTB11.Tag = "10";
-            this.PTB11.Text = "PTB11";
-            this.PTB11.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB10
-            // 
-            this.PTB10.Enabled = false;
-            this.PTB10.Location = new System.Drawing.Point(64, 48);
-            this.PTB10.Name = "PTB10";
-            this.PTB10.Size = new System.Drawing.Size(56, 40);
-            this.PTB10.TabIndex = 9;
-            this.PTB10.Tag = "9";
-            this.PTB10.Text = "PTB10";
-            this.PTB10.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB9
-            // 
-            this.PTB9.Enabled = false;
-            this.PTB9.Location = new System.Drawing.Point(8, 48);
-            this.PTB9.Name = "PTB9";
-            this.PTB9.Size = new System.Drawing.Size(56, 40);
-            this.PTB9.TabIndex = 8;
-            this.PTB9.Tag = "8";
-            this.PTB9.Text = "PTB9";
-            this.PTB9.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB8
-            // 
-            this.PTB8.Enabled = false;
-            this.PTB8.Location = new System.Drawing.Point(400, 8);
-            this.PTB8.Name = "PTB8";
-            this.PTB8.Size = new System.Drawing.Size(56, 40);
-            this.PTB8.TabIndex = 7;
-            this.PTB8.Tag = "7";
-            this.PTB8.Text = "PTB8";
-            this.PTB8.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB7
-            // 
-            this.PTB7.Enabled = false;
-            this.PTB7.Location = new System.Drawing.Point(344, 8);
-            this.PTB7.Name = "PTB7";
-            this.PTB7.Size = new System.Drawing.Size(56, 40);
-            this.PTB7.TabIndex = 6;
-            this.PTB7.Tag = "6";
-            this.PTB7.Text = "PTB7";
-            this.PTB7.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB6
-            // 
-            this.PTB6.Enabled = false;
-            this.PTB6.Location = new System.Drawing.Point(288, 8);
-            this.PTB6.Name = "PTB6";
-            this.PTB6.Size = new System.Drawing.Size(56, 40);
-            this.PTB6.TabIndex = 5;
-            this.PTB6.Tag = "5";
-            this.PTB6.Text = "PTB6";
-            this.PTB6.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB5
-            // 
-            this.PTB5.Enabled = false;
-            this.PTB5.Location = new System.Drawing.Point(232, 8);
-            this.PTB5.Name = "PTB5";
-            this.PTB5.Size = new System.Drawing.Size(56, 40);
-            this.PTB5.TabIndex = 4;
-            this.PTB5.Tag = "4";
-            this.PTB5.Text = "PTB5";
-            this.PTB5.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB4
-            // 
-            this.PTB4.Enabled = false;
-            this.PTB4.Location = new System.Drawing.Point(176, 8);
-            this.PTB4.Name = "PTB4";
-            this.PTB4.Size = new System.Drawing.Size(56, 40);
-            this.PTB4.TabIndex = 3;
-            this.PTB4.Tag = "3";
-            this.PTB4.Text = "PTB4";
-            this.PTB4.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB3
-            // 
-            this.PTB3.Enabled = false;
-            this.PTB3.Location = new System.Drawing.Point(120, 8);
-            this.PTB3.Name = "PTB3";
-            this.PTB3.Size = new System.Drawing.Size(56, 40);
-            this.PTB3.TabIndex = 2;
-            this.PTB3.Tag = "2";
-            this.PTB3.Text = "PTB3";
-            this.PTB3.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB2
-            // 
-            this.PTB2.Enabled = false;
-            this.PTB2.Location = new System.Drawing.Point(64, 8);
-            this.PTB2.Name = "PTB2";
-            this.PTB2.Size = new System.Drawing.Size(56, 40);
-            this.PTB2.TabIndex = 1;
-            this.PTB2.Tag = "1";
-            this.PTB2.Text = "PTB2";
-            this.PTB2.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // PTB1
-            // 
-            this.PTB1.Enabled = false;
-            this.PTB1.Location = new System.Drawing.Point(8, 8);
-            this.PTB1.Name = "PTB1";
-            this.PTB1.Size = new System.Drawing.Size(56, 40);
-            this.PTB1.TabIndex = 0;
-            this.PTB1.Tag = "0";
-            this.PTB1.Text = "PTB1";
-            this.PTB1.Click += new System.EventHandler(this.PTB_Click);
-            // 
-            // CloseTimer
-            // 
-            this.CloseTimer.Interval = 2000;
-            this.CloseTimer.Tick += new System.EventHandler(this.CloseTimer_Tick);
-            // 
-            // emdAlphaPanel
-            // 
-            this.emdAlphaPanel.Controls.Add(this.emdStandard1);
-            this.emdAlphaPanel.Location = new System.Drawing.Point(4, 448);
-            this.emdAlphaPanel.Name = "emdAlphaPanel";
-            this.emdAlphaPanel.Size = new System.Drawing.Size(655, 223);
-            this.emdAlphaPanel.TabIndex = 3;
-            this.emdAlphaPanel.Visible = false;
-            // 
-            // emdStandard1
-            // 
-            this.emdStandard1.About = null;
-            this.emdStandard1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
-            this.emdStandard1.ButtonHeight = 50;
-            this.emdStandard1.ButtonWidth = 50;
-            this.emdStandard1.CapsLock = true;
-            this.emdStandard1.KeyStyle = EMD.VBoard2006.EMDStandard.KeyStyleEnum.XP;
-            this.emdStandard1.Language = EMD.VBoard2006.EMDStandard.LanguageEnum.EnglishUK;
-            this.emdStandard1.Location = new System.Drawing.Point(3, 3);
-            this.emdStandard1.Name = "emdStandard1";
-            this.emdStandard1.Size = new System.Drawing.Size(755, 255);
-            this.emdStandard1.TabIndex = 0;
-            this.emdStandard1.Text = "emdStandard1";
-            this.emdStandard1.Click += new System.EventHandler(this.emdStandard1_Click);
-            // 
-            // emdNumericPanel
-            // 
-            this.emdNumericPanel.Controls.Add(this.emdNumeric1);
-            this.emdNumericPanel.Location = new System.Drawing.Point(444, 317);
-            this.emdNumericPanel.Name = "emdNumericPanel";
-            this.emdNumericPanel.Size = new System.Drawing.Size(318, 214);
-            this.emdNumericPanel.TabIndex = 4;
-            this.emdNumericPanel.Visible = false;
-            // 
-            // emdNumeric1
-            // 
-            this.emdNumeric1.About = null;
-            this.emdNumeric1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.None;
-            this.emdNumeric1.ButtonHeight = 50;
-            this.emdNumeric1.ButtonWidth = 50;
-            this.emdNumeric1.KeyStyle = EMD.VBoard2006.EMDStandard.KeyStyleEnum.XP;
-            this.emdNumeric1.Location = new System.Drawing.Point(0, 0);
-            this.emdNumeric1.Name = "emdNumeric1";
-            this.emdNumeric1.NumLock = true;
-            this.emdNumeric1.Size = new System.Drawing.Size(205, 255);
-            this.emdNumeric1.TabIndex = 0;
-            this.emdNumeric1.TabStop = true;
-            this.emdNumeric1.Text = "emdNumeric1";
-            // 
-            // emdvBoardDlg1
-            // 
-            this.emdvBoardDlg1.About = null;
-            this.emdvBoardDlg1.AccentKeyForeColor = System.Drawing.Color.Empty;
-            this.emdvBoardDlg1.ButtonHeight = 50;
-            this.emdvBoardDlg1.ButtonWidth = 50;
-            this.emdvBoardDlg1.KeyStyle = EMD.VBoard2006.EMDStandard.KeyStyleEnum.XP;
-            this.emdvBoardDlg1.Language = EMD.VBoard2006.EMDStandard.LanguageEnum.EnglishUK;
-            this.emdvBoardDlg1.Opacity = 75;
-            this.emdvBoardDlg1.Owner = null;
-            this.emdvBoardDlg1.PasswordChar = null;
-            // 
-            // MainForm
-            // 
-            this.AutoScaleBaseSize = new System.Drawing.Size(5, 13);
-            this.BackColor = System.Drawing.SystemColors.Window;
-            this.ClientSize = new System.Drawing.Size(800, 600);
-            this.ControlBox = false;
-            this.Controls.Add(this.emdNumericPanel);
-            this.Controls.Add(this.emdAlphaPanel);
-            this.Controls.Add(this.PanelTouch);
-            this.Controls.Add(this.PanelNotes);
-            this.Controls.Add(this.panel1);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
-            this.KeyPreview = true;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.Name = "MainForm";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
-            this.Text = "Elucid EPOS";
-            this.Activated += new System.EventHandler(this.MainForm_Activated);
-            this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MainForm_MouseDown);
-            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.MainForm_KeyDown);
-            this.panel1.ResumeLayout(false);
-            this.PanelNotes.ResumeLayout(false);
-            this.PanelNotes.PerformLayout();
-            this.PanelTouch.ResumeLayout(false);
-            this.emdAlphaPanel.ResumeLayout(false);
-            this.emdNumericPanel.ResumeLayout(false);
-            this.ResumeLayout(false);
+			this.components = new System.ComponentModel.Container();
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+			this.timer1 = new System.Windows.Forms.Timer(this.components);
+			this.panel1 = new System.Windows.Forms.Panel();
+			this.buttonback = new System.Windows.Forms.Button();
+			this.buttonup = new System.Windows.Forms.Button();
+			this.buttondown = new System.Windows.Forms.Button();
+			this.buttondot = new System.Windows.Forms.Button();
+			this.buttonenter = new System.Windows.Forms.Button();
+			this.button0 = new System.Windows.Forms.Button();
+			this.button9 = new System.Windows.Forms.Button();
+			this.button8 = new System.Windows.Forms.Button();
+			this.button7 = new System.Windows.Forms.Button();
+			this.button6 = new System.Windows.Forms.Button();
+			this.button5 = new System.Windows.Forms.Button();
+			this.button4 = new System.Windows.Forms.Button();
+			this.button3 = new System.Windows.Forms.Button();
+			this.button2 = new System.Windows.Forms.Button();
+			this.button1 = new System.Windows.Forms.Button();
+			this.PanelNotes = new System.Windows.Forms.Panel();
+			this.ListNotes = new System.Windows.Forms.TextBox();
+			this.ButtonNotes = new System.Windows.Forms.Button();
+			this.odbcConnection1 = new System.Data.Odbc.OdbcConnection();
+			this.PanelTouch = new System.Windows.Forms.Panel();
+			this.PTB32 = new System.Windows.Forms.Button();
+			this.PTB31 = new System.Windows.Forms.Button();
+			this.PTB30 = new System.Windows.Forms.Button();
+			this.PTB29 = new System.Windows.Forms.Button();
+			this.PTB28 = new System.Windows.Forms.Button();
+			this.PTB27 = new System.Windows.Forms.Button();
+			this.PTB26 = new System.Windows.Forms.Button();
+			this.PTB25 = new System.Windows.Forms.Button();
+			this.PTB24 = new System.Windows.Forms.Button();
+			this.PTB23 = new System.Windows.Forms.Button();
+			this.PTB22 = new System.Windows.Forms.Button();
+			this.PTB21 = new System.Windows.Forms.Button();
+			this.PTB20 = new System.Windows.Forms.Button();
+			this.PTB19 = new System.Windows.Forms.Button();
+			this.PTB18 = new System.Windows.Forms.Button();
+			this.PTB17 = new System.Windows.Forms.Button();
+			this.PTB16 = new System.Windows.Forms.Button();
+			this.PTB15 = new System.Windows.Forms.Button();
+			this.PTB14 = new System.Windows.Forms.Button();
+			this.PTB13 = new System.Windows.Forms.Button();
+			this.PTB12 = new System.Windows.Forms.Button();
+			this.PTB11 = new System.Windows.Forms.Button();
+			this.PTB10 = new System.Windows.Forms.Button();
+			this.PTB9 = new System.Windows.Forms.Button();
+			this.PTB8 = new System.Windows.Forms.Button();
+			this.PTB7 = new System.Windows.Forms.Button();
+			this.PTB6 = new System.Windows.Forms.Button();
+			this.PTB5 = new System.Windows.Forms.Button();
+			this.PTB4 = new System.Windows.Forms.Button();
+			this.PTB3 = new System.Windows.Forms.Button();
+			this.PTB2 = new System.Windows.Forms.Button();
+			this.PTB1 = new System.Windows.Forms.Button();
+			this.CloseTimer = new System.Windows.Forms.Timer(this.components);
+			this.emdAlphaPanel = new System.Windows.Forms.Panel();
+			this.emdNumericPanel = new System.Windows.Forms.Panel();
+			this.panel1.SuspendLayout();
+			this.PanelNotes.SuspendLayout();
+			this.PanelTouch.SuspendLayout();
+			this.SuspendLayout();
+			// 
+			// timer1
+			// 
+			this.timer1.Interval = 60000;
+			this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
+			// 
+			// panel1
+			// 
+			this.panel1.BackColor = System.Drawing.Color.Silver;
+			this.panel1.Controls.Add(this.buttonback);
+			this.panel1.Controls.Add(this.buttonup);
+			this.panel1.Controls.Add(this.buttondown);
+			this.panel1.Controls.Add(this.buttondot);
+			this.panel1.Controls.Add(this.buttonenter);
+			this.panel1.Controls.Add(this.button0);
+			this.panel1.Controls.Add(this.button9);
+			this.panel1.Controls.Add(this.button8);
+			this.panel1.Controls.Add(this.button7);
+			this.panel1.Controls.Add(this.button6);
+			this.panel1.Controls.Add(this.button5);
+			this.panel1.Controls.Add(this.button4);
+			this.panel1.Controls.Add(this.button3);
+			this.panel1.Controls.Add(this.button2);
+			this.panel1.Controls.Add(this.button1);
+			this.panel1.Location = new System.Drawing.Point(4, 210);
+			this.panel1.Name = "panel1";
+			this.panel1.Size = new System.Drawing.Size(410, 232);
+			this.panel1.TabIndex = 0;
+			this.panel1.Visible = false;
+			// 
+			// buttonback
+			// 
+			this.buttonback.CausesValidation = false;
+			this.buttonback.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.buttonback.Location = new System.Drawing.Point(320, 128);
+			this.buttonback.Name = "buttonback";
+			this.buttonback.Size = new System.Drawing.Size(72, 40);
+			this.buttonback.TabIndex = 14;
+			this.buttonback.TabStop = false;
+			this.buttonback.Tag = "{BKSP}";
+			this.buttonback.Text = "BACK";
+			this.buttonback.Click += new System.EventHandler(this.button1_Click);
+			this.buttonback.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// buttonup
+			// 
+			this.buttonup.CausesValidation = false;
+			this.buttonup.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.buttonup.Image = ((System.Drawing.Image)(resources.GetObject("buttonup.Image")));
+			this.buttonup.Location = new System.Drawing.Point(320, 16);
+			this.buttonup.Name = "buttonup";
+			this.buttonup.Size = new System.Drawing.Size(72, 40);
+			this.buttonup.TabIndex = 13;
+			this.buttonup.TabStop = false;
+			this.buttonup.Tag = "{UP}";
+			this.buttonup.Click += new System.EventHandler(this.button1_Click);
+			this.buttonup.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// buttondown
+			// 
+			this.buttondown.CausesValidation = false;
+			this.buttondown.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.buttondown.Location = new System.Drawing.Point(320, 72);
+			this.buttondown.Name = "buttondown";
+			this.buttondown.Size = new System.Drawing.Size(72, 40);
+			this.buttondown.TabIndex = 12;
+			this.buttondown.TabStop = false;
+			this.buttondown.Tag = "{DOWN}";
+			this.buttondown.Text = "DN";
+			this.buttondown.Click += new System.EventHandler(this.button1_Click);
+			this.buttondown.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// buttondot
+			// 
+			this.buttondot.CausesValidation = false;
+			this.buttondot.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.buttondot.Location = new System.Drawing.Point(208, 184);
+			this.buttondot.Name = "buttondot";
+			this.buttondot.Size = new System.Drawing.Size(72, 40);
+			this.buttondot.TabIndex = 11;
+			this.buttondot.TabStop = false;
+			this.buttondot.Tag = ".";
+			this.buttondot.Text = ".";
+			this.buttondot.TextAlign = System.Drawing.ContentAlignment.BottomCenter;
+			this.buttondot.Click += new System.EventHandler(this.button1_Click);
+			this.buttondot.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// buttonenter
+			// 
+			this.buttonenter.CausesValidation = false;
+			this.buttonenter.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.buttonenter.Location = new System.Drawing.Point(320, 184);
+			this.buttonenter.Name = "buttonenter";
+			this.buttonenter.Size = new System.Drawing.Size(72, 40);
+			this.buttonenter.TabIndex = 10;
+			this.buttonenter.TabStop = false;
+			this.buttonenter.Tag = "{ENTER}";
+			this.buttonenter.Text = "Enter";
+			this.buttonenter.Click += new System.EventHandler(this.button1_Click);
+			this.buttonenter.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button0
+			// 
+			this.button0.CausesValidation = false;
+			this.button0.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button0.Location = new System.Drawing.Point(16, 184);
+			this.button0.Name = "button0";
+			this.button0.Size = new System.Drawing.Size(168, 40);
+			this.button0.TabIndex = 9;
+			this.button0.TabStop = false;
+			this.button0.Tag = "0";
+			this.button0.Text = "0";
+			this.button0.Click += new System.EventHandler(this.button1_Click);
+			this.button0.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button9
+			// 
+			this.button9.CausesValidation = false;
+			this.button9.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button9.Location = new System.Drawing.Point(208, 16);
+			this.button9.Name = "button9";
+			this.button9.Size = new System.Drawing.Size(72, 40);
+			this.button9.TabIndex = 8;
+			this.button9.TabStop = false;
+			this.button9.Tag = "9";
+			this.button9.Text = "9";
+			this.button9.Click += new System.EventHandler(this.button1_Click);
+			this.button9.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button8
+			// 
+			this.button8.CausesValidation = false;
+			this.button8.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button8.Location = new System.Drawing.Point(112, 16);
+			this.button8.Name = "button8";
+			this.button8.Size = new System.Drawing.Size(72, 40);
+			this.button8.TabIndex = 7;
+			this.button8.TabStop = false;
+			this.button8.Tag = "8";
+			this.button8.Text = "8";
+			this.button8.Click += new System.EventHandler(this.button1_Click);
+			this.button8.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button7
+			// 
+			this.button7.BackColor = System.Drawing.Color.Silver;
+			this.button7.CausesValidation = false;
+			this.button7.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button7.ForeColor = System.Drawing.Color.Black;
+			this.button7.Location = new System.Drawing.Point(16, 16);
+			this.button7.Name = "button7";
+			this.button7.Size = new System.Drawing.Size(72, 40);
+			this.button7.TabIndex = 6;
+			this.button7.TabStop = false;
+			this.button7.Tag = "7";
+			this.button7.Text = "7";
+			this.button7.UseVisualStyleBackColor = false;
+			this.button7.Click += new System.EventHandler(this.button1_Click);
+			this.button7.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button6
+			// 
+			this.button6.CausesValidation = false;
+			this.button6.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button6.Location = new System.Drawing.Point(208, 72);
+			this.button6.Name = "button6";
+			this.button6.Size = new System.Drawing.Size(72, 40);
+			this.button6.TabIndex = 5;
+			this.button6.TabStop = false;
+			this.button6.Tag = "6";
+			this.button6.Text = "6";
+			this.button6.Click += new System.EventHandler(this.button1_Click);
+			this.button6.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button5
+			// 
+			this.button5.CausesValidation = false;
+			this.button5.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button5.Location = new System.Drawing.Point(112, 72);
+			this.button5.Name = "button5";
+			this.button5.Size = new System.Drawing.Size(72, 40);
+			this.button5.TabIndex = 4;
+			this.button5.TabStop = false;
+			this.button5.Tag = "5";
+			this.button5.Text = "5";
+			this.button5.Click += new System.EventHandler(this.button1_Click);
+			this.button5.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button4
+			// 
+			this.button4.CausesValidation = false;
+			this.button4.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button4.Location = new System.Drawing.Point(16, 72);
+			this.button4.Name = "button4";
+			this.button4.Size = new System.Drawing.Size(72, 40);
+			this.button4.TabIndex = 3;
+			this.button4.TabStop = false;
+			this.button4.Tag = "4";
+			this.button4.Text = "4";
+			this.button4.Click += new System.EventHandler(this.button1_Click);
+			this.button4.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button3
+			// 
+			this.button3.CausesValidation = false;
+			this.button3.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button3.Location = new System.Drawing.Point(208, 128);
+			this.button3.Name = "button3";
+			this.button3.Size = new System.Drawing.Size(72, 40);
+			this.button3.TabIndex = 2;
+			this.button3.TabStop = false;
+			this.button3.Tag = "3";
+			this.button3.Text = "3";
+			this.button3.Click += new System.EventHandler(this.button1_Click);
+			this.button3.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button2
+			// 
+			this.button2.CausesValidation = false;
+			this.button2.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button2.Location = new System.Drawing.Point(112, 128);
+			this.button2.Name = "button2";
+			this.button2.Size = new System.Drawing.Size(72, 40);
+			this.button2.TabIndex = 1;
+			this.button2.TabStop = false;
+			this.button2.Tag = "2";
+			this.button2.Text = "2";
+			this.button2.Click += new System.EventHandler(this.button1_Click);
+			this.button2.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// button1
+			// 
+			this.button1.CausesValidation = false;
+			this.button1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.button1.Location = new System.Drawing.Point(16, 128);
+			this.button1.Name = "button1";
+			this.button1.Size = new System.Drawing.Size(72, 40);
+			this.button1.TabIndex = 0;
+			this.button1.TabStop = false;
+			this.button1.Tag = "1";
+			this.button1.Text = "1";
+			this.button1.Click += new System.EventHandler(this.button1_Click);
+			this.button1.MouseDown += new System.Windows.Forms.MouseEventHandler(this.buttonenter_MouseDown);
+			// 
+			// PanelNotes
+			// 
+			this.PanelNotes.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+			this.PanelNotes.Controls.Add(this.ListNotes);
+			this.PanelNotes.Controls.Add(this.ButtonNotes);
+			this.PanelNotes.Location = new System.Drawing.Point(524, 4);
+			this.PanelNotes.Name = "PanelNotes";
+			this.PanelNotes.Size = new System.Drawing.Size(264, 296);
+			this.PanelNotes.TabIndex = 1;
+			this.PanelNotes.Visible = false;
+			// 
+			// ListNotes
+			// 
+			this.ListNotes.Enabled = false;
+			this.ListNotes.Location = new System.Drawing.Point(0, 0);
+			this.ListNotes.Multiline = true;
+			this.ListNotes.Name = "ListNotes";
+			this.ListNotes.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+			this.ListNotes.Size = new System.Drawing.Size(256, 248);
+			this.ListNotes.TabIndex = 3;
+			this.ListNotes.Text = "textBox1";
+			// 
+			// ButtonNotes
+			// 
+			this.ButtonNotes.Location = new System.Drawing.Point(64, 256);
+			this.ButtonNotes.Name = "ButtonNotes";
+			this.ButtonNotes.Size = new System.Drawing.Size(144, 32);
+			this.ButtonNotes.TabIndex = 1;
+			this.ButtonNotes.Text = "OK";
+			this.ButtonNotes.Click += new System.EventHandler(this.ButtonNotes_Click);
+			// 
+			// odbcConnection1
+			// 
+			this.odbcConnection1.ConnectionString = "DSN=ELUCID;UID=sa;DATABASE=eluciddbv8;APP=Microsoft® Visual Studio .NET;WSID=VAIO" +
+				";PWD=saturn5a";
+			// 
+			// PanelTouch
+			// 
+			this.PanelTouch.Controls.Add(this.PTB32);
+			this.PanelTouch.Controls.Add(this.PTB31);
+			this.PanelTouch.Controls.Add(this.PTB30);
+			this.PanelTouch.Controls.Add(this.PTB29);
+			this.PanelTouch.Controls.Add(this.PTB28);
+			this.PanelTouch.Controls.Add(this.PTB27);
+			this.PanelTouch.Controls.Add(this.PTB26);
+			this.PanelTouch.Controls.Add(this.PTB25);
+			this.PanelTouch.Controls.Add(this.PTB24);
+			this.PanelTouch.Controls.Add(this.PTB23);
+			this.PanelTouch.Controls.Add(this.PTB22);
+			this.PanelTouch.Controls.Add(this.PTB21);
+			this.PanelTouch.Controls.Add(this.PTB20);
+			this.PanelTouch.Controls.Add(this.PTB19);
+			this.PanelTouch.Controls.Add(this.PTB18);
+			this.PanelTouch.Controls.Add(this.PTB17);
+			this.PanelTouch.Controls.Add(this.PTB16);
+			this.PanelTouch.Controls.Add(this.PTB15);
+			this.PanelTouch.Controls.Add(this.PTB14);
+			this.PanelTouch.Controls.Add(this.PTB13);
+			this.PanelTouch.Controls.Add(this.PTB12);
+			this.PanelTouch.Controls.Add(this.PTB11);
+			this.PanelTouch.Controls.Add(this.PTB10);
+			this.PanelTouch.Controls.Add(this.PTB9);
+			this.PanelTouch.Controls.Add(this.PTB8);
+			this.PanelTouch.Controls.Add(this.PTB7);
+			this.PanelTouch.Controls.Add(this.PTB6);
+			this.PanelTouch.Controls.Add(this.PTB5);
+			this.PanelTouch.Controls.Add(this.PTB4);
+			this.PanelTouch.Controls.Add(this.PTB3);
+			this.PanelTouch.Controls.Add(this.PTB2);
+			this.PanelTouch.Controls.Add(this.PTB1);
+			this.PanelTouch.Location = new System.Drawing.Point(4, 4);
+			this.PanelTouch.Name = "PanelTouch";
+			this.PanelTouch.Size = new System.Drawing.Size(496, 200);
+			this.PanelTouch.TabIndex = 2;
+			// 
+			// PTB32
+			// 
+			this.PTB32.Enabled = false;
+			this.PTB32.Location = new System.Drawing.Point(400, 128);
+			this.PTB32.Name = "PTB32";
+			this.PTB32.Size = new System.Drawing.Size(56, 40);
+			this.PTB32.TabIndex = 31;
+			this.PTB32.Tag = "31";
+			this.PTB32.Text = "PTB32";
+			this.PTB32.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB31
+			// 
+			this.PTB31.Enabled = false;
+			this.PTB31.Location = new System.Drawing.Point(344, 128);
+			this.PTB31.Name = "PTB31";
+			this.PTB31.Size = new System.Drawing.Size(56, 40);
+			this.PTB31.TabIndex = 30;
+			this.PTB31.Tag = "30";
+			this.PTB31.Text = "PTB31";
+			this.PTB31.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB30
+			// 
+			this.PTB30.Enabled = false;
+			this.PTB30.Location = new System.Drawing.Point(288, 128);
+			this.PTB30.Name = "PTB30";
+			this.PTB30.Size = new System.Drawing.Size(56, 40);
+			this.PTB30.TabIndex = 29;
+			this.PTB30.Tag = "29";
+			this.PTB30.Text = "PTB30";
+			this.PTB30.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB29
+			// 
+			this.PTB29.Enabled = false;
+			this.PTB29.Location = new System.Drawing.Point(232, 128);
+			this.PTB29.Name = "PTB29";
+			this.PTB29.Size = new System.Drawing.Size(56, 40);
+			this.PTB29.TabIndex = 28;
+			this.PTB29.Tag = "28";
+			this.PTB29.Text = "PTB29";
+			this.PTB29.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB28
+			// 
+			this.PTB28.Enabled = false;
+			this.PTB28.Location = new System.Drawing.Point(176, 128);
+			this.PTB28.Name = "PTB28";
+			this.PTB28.Size = new System.Drawing.Size(56, 40);
+			this.PTB28.TabIndex = 27;
+			this.PTB28.Tag = "27";
+			this.PTB28.Text = "PTB28";
+			this.PTB28.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB27
+			// 
+			this.PTB27.Enabled = false;
+			this.PTB27.Location = new System.Drawing.Point(120, 128);
+			this.PTB27.Name = "PTB27";
+			this.PTB27.Size = new System.Drawing.Size(56, 40);
+			this.PTB27.TabIndex = 26;
+			this.PTB27.Tag = "26";
+			this.PTB27.Text = "PTB27";
+			this.PTB27.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB26
+			// 
+			this.PTB26.Enabled = false;
+			this.PTB26.Location = new System.Drawing.Point(64, 128);
+			this.PTB26.Name = "PTB26";
+			this.PTB26.Size = new System.Drawing.Size(56, 40);
+			this.PTB26.TabIndex = 25;
+			this.PTB26.Tag = "25";
+			this.PTB26.Text = "PTB26";
+			this.PTB26.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB25
+			// 
+			this.PTB25.Enabled = false;
+			this.PTB25.Location = new System.Drawing.Point(8, 128);
+			this.PTB25.Name = "PTB25";
+			this.PTB25.Size = new System.Drawing.Size(56, 40);
+			this.PTB25.TabIndex = 24;
+			this.PTB25.Tag = "24";
+			this.PTB25.Text = "PTB25";
+			this.PTB25.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB24
+			// 
+			this.PTB24.Enabled = false;
+			this.PTB24.Location = new System.Drawing.Point(400, 88);
+			this.PTB24.Name = "PTB24";
+			this.PTB24.Size = new System.Drawing.Size(56, 40);
+			this.PTB24.TabIndex = 23;
+			this.PTB24.Tag = "23";
+			this.PTB24.Text = "PTB24";
+			this.PTB24.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB23
+			// 
+			this.PTB23.Enabled = false;
+			this.PTB23.Location = new System.Drawing.Point(344, 88);
+			this.PTB23.Name = "PTB23";
+			this.PTB23.Size = new System.Drawing.Size(56, 40);
+			this.PTB23.TabIndex = 22;
+			this.PTB23.Tag = "22";
+			this.PTB23.Text = "PTB23";
+			this.PTB23.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB22
+			// 
+			this.PTB22.Enabled = false;
+			this.PTB22.Location = new System.Drawing.Point(288, 88);
+			this.PTB22.Name = "PTB22";
+			this.PTB22.Size = new System.Drawing.Size(56, 40);
+			this.PTB22.TabIndex = 21;
+			this.PTB22.Tag = "21";
+			this.PTB22.Text = "PTB22";
+			this.PTB22.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB21
+			// 
+			this.PTB21.Enabled = false;
+			this.PTB21.Location = new System.Drawing.Point(232, 88);
+			this.PTB21.Name = "PTB21";
+			this.PTB21.Size = new System.Drawing.Size(56, 40);
+			this.PTB21.TabIndex = 20;
+			this.PTB21.Tag = "20";
+			this.PTB21.Text = "PTB21";
+			this.PTB21.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB20
+			// 
+			this.PTB20.Enabled = false;
+			this.PTB20.Location = new System.Drawing.Point(176, 88);
+			this.PTB20.Name = "PTB20";
+			this.PTB20.Size = new System.Drawing.Size(56, 40);
+			this.PTB20.TabIndex = 19;
+			this.PTB20.Tag = "19";
+			this.PTB20.Text = "PTB20";
+			this.PTB20.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB19
+			// 
+			this.PTB19.Enabled = false;
+			this.PTB19.Location = new System.Drawing.Point(120, 88);
+			this.PTB19.Name = "PTB19";
+			this.PTB19.Size = new System.Drawing.Size(56, 40);
+			this.PTB19.TabIndex = 18;
+			this.PTB19.Tag = "18";
+			this.PTB19.Text = "PTB19";
+			this.PTB19.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB18
+			// 
+			this.PTB18.Enabled = false;
+			this.PTB18.Location = new System.Drawing.Point(64, 88);
+			this.PTB18.Name = "PTB18";
+			this.PTB18.Size = new System.Drawing.Size(56, 40);
+			this.PTB18.TabIndex = 17;
+			this.PTB18.Tag = "17";
+			this.PTB18.Text = "PTB18";
+			this.PTB18.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB17
+			// 
+			this.PTB17.Enabled = false;
+			this.PTB17.Location = new System.Drawing.Point(8, 88);
+			this.PTB17.Name = "PTB17";
+			this.PTB17.Size = new System.Drawing.Size(56, 40);
+			this.PTB17.TabIndex = 16;
+			this.PTB17.Tag = "16";
+			this.PTB17.Text = "PTB17";
+			this.PTB17.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB16
+			// 
+			this.PTB16.Enabled = false;
+			this.PTB16.Location = new System.Drawing.Point(400, 48);
+			this.PTB16.Name = "PTB16";
+			this.PTB16.Size = new System.Drawing.Size(56, 40);
+			this.PTB16.TabIndex = 15;
+			this.PTB16.Tag = "15";
+			this.PTB16.Text = "PTB16";
+			this.PTB16.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB15
+			// 
+			this.PTB15.Enabled = false;
+			this.PTB15.Location = new System.Drawing.Point(344, 48);
+			this.PTB15.Name = "PTB15";
+			this.PTB15.Size = new System.Drawing.Size(56, 40);
+			this.PTB15.TabIndex = 14;
+			this.PTB15.Tag = "14";
+			this.PTB15.Text = "PTB15";
+			this.PTB15.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB14
+			// 
+			this.PTB14.Enabled = false;
+			this.PTB14.Location = new System.Drawing.Point(288, 48);
+			this.PTB14.Name = "PTB14";
+			this.PTB14.Size = new System.Drawing.Size(56, 40);
+			this.PTB14.TabIndex = 13;
+			this.PTB14.Tag = "13";
+			this.PTB14.Text = "PTB14";
+			this.PTB14.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB13
+			// 
+			this.PTB13.Enabled = false;
+			this.PTB13.Location = new System.Drawing.Point(232, 48);
+			this.PTB13.Name = "PTB13";
+			this.PTB13.Size = new System.Drawing.Size(56, 40);
+			this.PTB13.TabIndex = 12;
+			this.PTB13.Tag = "12";
+			this.PTB13.Text = "PTB13";
+			this.PTB13.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB12
+			// 
+			this.PTB12.Enabled = false;
+			this.PTB12.Location = new System.Drawing.Point(176, 48);
+			this.PTB12.Name = "PTB12";
+			this.PTB12.Size = new System.Drawing.Size(56, 40);
+			this.PTB12.TabIndex = 11;
+			this.PTB12.Tag = "11";
+			this.PTB12.Text = "PTB12";
+			this.PTB12.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB11
+			// 
+			this.PTB11.Enabled = false;
+			this.PTB11.Location = new System.Drawing.Point(120, 48);
+			this.PTB11.Name = "PTB11";
+			this.PTB11.Size = new System.Drawing.Size(56, 40);
+			this.PTB11.TabIndex = 10;
+			this.PTB11.Tag = "10";
+			this.PTB11.Text = "PTB11";
+			this.PTB11.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB10
+			// 
+			this.PTB10.Enabled = false;
+			this.PTB10.Location = new System.Drawing.Point(64, 48);
+			this.PTB10.Name = "PTB10";
+			this.PTB10.Size = new System.Drawing.Size(56, 40);
+			this.PTB10.TabIndex = 9;
+			this.PTB10.Tag = "9";
+			this.PTB10.Text = "PTB10";
+			this.PTB10.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB9
+			// 
+			this.PTB9.Enabled = false;
+			this.PTB9.Location = new System.Drawing.Point(8, 48);
+			this.PTB9.Name = "PTB9";
+			this.PTB9.Size = new System.Drawing.Size(56, 40);
+			this.PTB9.TabIndex = 8;
+			this.PTB9.Tag = "8";
+			this.PTB9.Text = "PTB9";
+			this.PTB9.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB8
+			// 
+			this.PTB8.Enabled = false;
+			this.PTB8.Location = new System.Drawing.Point(400, 8);
+			this.PTB8.Name = "PTB8";
+			this.PTB8.Size = new System.Drawing.Size(56, 40);
+			this.PTB8.TabIndex = 7;
+			this.PTB8.Tag = "7";
+			this.PTB8.Text = "PTB8";
+			this.PTB8.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB7
+			// 
+			this.PTB7.Enabled = false;
+			this.PTB7.Location = new System.Drawing.Point(344, 8);
+			this.PTB7.Name = "PTB7";
+			this.PTB7.Size = new System.Drawing.Size(56, 40);
+			this.PTB7.TabIndex = 6;
+			this.PTB7.Tag = "6";
+			this.PTB7.Text = "PTB7";
+			this.PTB7.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB6
+			// 
+			this.PTB6.Enabled = false;
+			this.PTB6.Location = new System.Drawing.Point(288, 8);
+			this.PTB6.Name = "PTB6";
+			this.PTB6.Size = new System.Drawing.Size(56, 40);
+			this.PTB6.TabIndex = 5;
+			this.PTB6.Tag = "5";
+			this.PTB6.Text = "PTB6";
+			this.PTB6.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB5
+			// 
+			this.PTB5.Enabled = false;
+			this.PTB5.Location = new System.Drawing.Point(232, 8);
+			this.PTB5.Name = "PTB5";
+			this.PTB5.Size = new System.Drawing.Size(56, 40);
+			this.PTB5.TabIndex = 4;
+			this.PTB5.Tag = "4";
+			this.PTB5.Text = "PTB5";
+			this.PTB5.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB4
+			// 
+			this.PTB4.Enabled = false;
+			this.PTB4.Location = new System.Drawing.Point(176, 8);
+			this.PTB4.Name = "PTB4";
+			this.PTB4.Size = new System.Drawing.Size(56, 40);
+			this.PTB4.TabIndex = 3;
+			this.PTB4.Tag = "3";
+			this.PTB4.Text = "PTB4";
+			this.PTB4.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB3
+			// 
+			this.PTB3.Enabled = false;
+			this.PTB3.Location = new System.Drawing.Point(120, 8);
+			this.PTB3.Name = "PTB3";
+			this.PTB3.Size = new System.Drawing.Size(56, 40);
+			this.PTB3.TabIndex = 2;
+			this.PTB3.Tag = "2";
+			this.PTB3.Text = "PTB3";
+			this.PTB3.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB2
+			// 
+			this.PTB2.Enabled = false;
+			this.PTB2.Location = new System.Drawing.Point(64, 8);
+			this.PTB2.Name = "PTB2";
+			this.PTB2.Size = new System.Drawing.Size(56, 40);
+			this.PTB2.TabIndex = 1;
+			this.PTB2.Tag = "1";
+			this.PTB2.Text = "PTB2";
+			this.PTB2.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// PTB1
+			// 
+			this.PTB1.Enabled = false;
+			this.PTB1.Location = new System.Drawing.Point(8, 8);
+			this.PTB1.Name = "PTB1";
+			this.PTB1.Size = new System.Drawing.Size(56, 40);
+			this.PTB1.TabIndex = 0;
+			this.PTB1.Tag = "0";
+			this.PTB1.Text = "PTB1";
+			this.PTB1.Click += new System.EventHandler(this.PTB_Click);
+			// 
+			// CloseTimer
+			// 
+			this.CloseTimer.Interval = 2000;
+			this.CloseTimer.Tick += new System.EventHandler(this.CloseTimer_Tick);
+			// 
+			// emdAlphaPanel
+			// 
+			this.emdAlphaPanel.Location = new System.Drawing.Point(4, 448);
+			this.emdAlphaPanel.Name = "emdAlphaPanel";
+			this.emdAlphaPanel.Size = new System.Drawing.Size(655, 223);
+			this.emdAlphaPanel.TabIndex = 3;
+			this.emdAlphaPanel.Visible = false;
+			// 
+			// emdNumericPanel
+			// 
+			this.emdNumericPanel.Location = new System.Drawing.Point(444, 317);
+			this.emdNumericPanel.Name = "emdNumericPanel";
+			this.emdNumericPanel.Size = new System.Drawing.Size(318, 214);
+			this.emdNumericPanel.TabIndex = 4;
+			this.emdNumericPanel.Visible = false;
+			// 
+			// MainForm
+			// 
+			this.AutoScaleBaseSize = new System.Drawing.Size(5, 13);
+			this.BackColor = System.Drawing.SystemColors.Window;
+			this.ClientSize = new System.Drawing.Size(800, 600);
+			this.ControlBox = false;
+			this.Controls.Add(this.emdNumericPanel);
+			this.Controls.Add(this.emdAlphaPanel);
+			this.Controls.Add(this.PanelTouch);
+			this.Controls.Add(this.PanelNotes);
+			this.Controls.Add(this.panel1);
+			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+			this.KeyPreview = true;
+			this.MaximizeBox = false;
+			this.MinimizeBox = false;
+			this.Name = "MainForm";
+			this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+			this.Text = "Elucid EPOS";
+			this.Activated += new System.EventHandler(this.MainForm_Activated);
+			this.FormClosed += new FormClosedEventHandler(MainForm_FormClosed);
+			this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MainForm_MouseDown);
+			this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.MainForm_KeyDown);
+			this.panel1.ResumeLayout(false);
+			this.PanelNotes.ResumeLayout(false);
+			this.PanelNotes.PerformLayout();
+			this.PanelTouch.ResumeLayout(false);
+			this.ResumeLayout(false);
 
 		}
-		#endregion
+		#endregion // Windows Form Designer generated code
 
 		/// <summary>
 		/// The main entry point for the application.
 		/// </summary>
 		[STAThread]
 
-
-		static void Main(string[] args) {
+		static void Main(string[] args)
+		{
 			string inifile;
 
 			if (args.Length > 1) {
@@ -1834,12 +1862,19 @@ namespace epos {
 		}
 
 
+
 		public static void xdebug(string msg) {
 			if (startupdebug) {
 				System.IO.StreamWriter sw = new StreamWriter(@"c:\epos.dbg",true);
 				sw.WriteLine(msg);
 				sw.Close();
 			}
+		}
+		public static void ydebug(string msg) 
+		{
+			System.IO.StreamWriter yDebugWriter = new StreamWriter(@"c:\eposy.dbg", true);
+			yDebugWriter.WriteLine(msg);
+			yDebugWriter.Close();			
 		}
 
 		#region callback
@@ -1906,7 +1941,7 @@ namespace epos {
 			else
 				return true;
 		}
-		#endregion
+		#endregion // callback
 
 		#region inifile
 		private void processinifile(string inifile) {
@@ -2045,9 +2080,9 @@ namespace epos {
 			printlogo = dat.ToString();
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","font","15 cpi",dat,200,inifile);
-			printerfont = dat.ToString();
+			printerfont= dat.ToString();
 			dat = new StringBuilder(200);
-			erc = GetPrivateProfileString("till","ccfont",printerfont,dat,200,inifile);
+			erc = GetPrivateProfileString("till","ccfont",printerfont,dat,200,inifile);//**
 			printerccfont = dat.ToString();
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","controlfont","Control",dat,200,inifile);
@@ -2102,7 +2137,7 @@ namespace epos {
 			erc = GetPrivateProfileString("till","keypad","false",dat,200,inifile);
 			onscreenkeypad = (dat.ToString().ToLower() == "true");
 
-            dat = new StringBuilder(200);
+			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","salelogout","false",dat,200,inifile);
 			SaleLogout = (dat.ToString().ToLower() == "true");
 
@@ -2180,7 +2215,7 @@ namespace epos {
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","onesteplogin","false",dat,200,inifile);
 			onesteplogin = (dat.ToString().ToLower() == "true");
-		
+
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","returntomainmenu","true",dat,200,inifile);
 			returntomainmenu = (dat.ToString().ToLower() == "true");
@@ -2200,6 +2235,7 @@ namespace epos {
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","reprintcollect","false",dat,200,inifile);
 			reprintcollect = (dat.ToString().ToLower() == "true");
+
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","reprintreturns","false",dat,200,inifile);
 			reprintreturns = (dat.ToString().ToLower() == "true");
@@ -2213,13 +2249,21 @@ namespace epos {
 			printsignatureline = (dat.ToString().ToLower() == "true");
 
 			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("till", "printsignaturereturn", "false", dat, 200, inifile);
+			printsignaturereturn = (dat.ToString().ToLower() == "true");
+
+			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","treatvouchersascash","false",dat,200,inifile);
 			treatvouchersascash = (dat.ToString().ToLower() == "true");
-		
+
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("till", "showvoucherinfo", "true", dat, 200, inifile);
+			showvoucherinfo = (dat.ToString().ToLower() == "true");
+
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till","cashlimitfactor","50.0",dat,200,inifile);
 			if (dat.ToString() != "") {
-				cashlimitfactor = Convert.ToDecimal(dat.ToString());
+				cashlimitfactor = Convert.ToDecimal(dat.ToString()); // herelimit
 			}
 
 			dat = new StringBuilder(200);
@@ -2267,36 +2311,36 @@ namespace epos {
 			erc = GetPrivateProfileString("CUST_WINDOW","POSTCODE","47,8",dat,200,inifile);
 			this.cpostcodelayout = dat.ToString();
 
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("CUST_WINDOW", "ADDRESS", "47,0", dat, 200, inifile);
-            this.caddresslayout = dat.ToString();
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("CUST_WINDOW", "ADDRESS", "47,0", dat, 200, inifile);
+			this.caddresslayout = dat.ToString();
 
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("CUST_WINDOW", "COMPANY", "47,0", dat, 200, inifile);
-            this.ccompanylayout = dat.ToString();
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("CUST_WINDOW", "COMPANY", "47,0", dat, 200, inifile);
+			this.ccompanylayout = dat.ToString();
 
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("CUST_WINDOW", "PHONEDAY", "47,0", dat, 200, inifile);
-            this.cphonedaylayout = dat.ToString();
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("CUST_WINDOW", "PHONEDAY", "47,0", dat, 200, inifile);
+			this.cphonedaylayout = dat.ToString();
 
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("CUST_WINDOW", "EMAIL", "47,0", dat, 200, inifile);
-            this.cemaillayout = dat.ToString();
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("CUST_WINDOW", "EMAIL", "47,0", dat, 200, inifile);
+			this.cemaillayout = dat.ToString();
 
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("CUST_WINDOW", "CITY", "47,0", dat, 200, inifile);
-            this.ccitylayout = dat.ToString();            
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("CUST_WINDOW", "CITY", "47,0", dat, 200, inifile);
+			this.ccitylayout = dat.ToString();			
 
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("CUST_WINDOW", "TRADEACCOUNT", "47,0", dat, 200, inifile);
-            this.ctradeaccountlayout = dat.ToString();
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("CUST_WINDOW", "TRADEACCOUNT", "47,0", dat, 200, inifile);
+			this.ctradeaccountlayout = dat.ToString();
 
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("CUST_WINDOW", "MEDICALEXEMPTION", "47,0", dat, 200, inifile);
-            this.cmedicalexemptionlayout = dat.ToString();
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("CUST_WINDOW", "MEDICALEXEMPTION", "47,0", dat, 200, inifile);
+			this.cmedicalexemptionlayout = dat.ToString();
 
-        }
-		#endregion
+		}
+		#endregion // inifile
 
 		#region loadcontrolarrays
 
@@ -2369,9 +2413,10 @@ namespace epos {
 			FK_value[10] = "LOGOUT";
 		}
 
-		#endregion
+		#endregion // loadcontrolarrays
 
 		#region controlmanipulation
+
 		private void loaddisplay(int displaystate) {
 			string xxx = "";
 			string img = "";
@@ -2393,14 +2438,11 @@ namespace epos {
 			XmlNodeReader reader;
 			Button bb;
 
-
 			
-			reader = new XmlNodeReader(Cscript);
-			
+			reader = new XmlNodeReader(Cscript);	
 			
 			
 			processing = false;
-
 
 
 			pbcount = 0;
@@ -2442,8 +2484,8 @@ namespace epos {
 				if (xxx.Equals("keypad")) {
 					x = Convert.ToInt32(reader.GetAttribute("xpos"));
 					y = Convert.ToInt32(reader.GetAttribute("ypos"));
-					panel1.Top = y;
-					panel1.Left = x;
+					panel1.Top = y; 
+ 					panel1.Left = x;
 					xcolour = reader.GetAttribute("colour");
 					if ((xpos = xcolour.IndexOf(",")) > 0) {
 						r = Convert.ToInt32(xcolour.Substring(0,xpos));
@@ -3115,8 +3157,7 @@ namespace epos {
 					}
 				}
 
-				if (xxx.Equals("panel"))
-                {
+				if (xxx.Equals("panel")) {
 					Panel pnl;
 
 					x = Convert.ToInt32(reader.GetAttribute("xpos"));
@@ -3124,45 +3165,38 @@ namespace epos {
 					w = Convert.ToInt32(reader.GetAttribute("width"));
 					h = Convert.ToInt32(reader.GetAttribute("height"));
 					this.SuspendLayout();
-
 					string ptxt = reader.GetAttribute("name").ToUpper();
-					if (ptxt == "pnotes".ToUpper())
-                    {
+					if (ptxt == "pnotes".ToUpper()) {
 						pnl = PanelNotes;
 					}
-					else if (ptxt == "ptouch".ToUpper())
-                    {
+					else if (ptxt == "ptouch".ToUpper()) {
 						pnl = PanelTouch;
 					}
-                    else if (ptxt == "emdkeypad".ToUpper())
-                    {
-                        pnl = emdNumericPanel;
-                    }
-                    else if (ptxt == "emdalphapad".ToUpper())
-                    {
-                        pnl = emdAlphaPanel;
-                    }
-                    else // "keypad"
-                    {
-                        pnl = panel1;
-                    }
+					else if (ptxt == "emdkeypad".ToUpper()) {
+						pnl = emdNumericPanel;
+					}
+					else if (ptxt == "emdalphapad".ToUpper())
+					{
+						pnl = emdAlphaPanel;
+					}
+					else // "keypad"
+					{
+						pnl = panel1;
+					}
 
 					pnl.Location = new System.Drawing.Point(x,y);
 					pnl.Size = new System.Drawing.Size(w,h);
 
 					img = reader.GetAttribute("image");
 
-					if ((img != "") && (img != null))
-                    {
+					if ((img != "") && (img != null)) {
 						pnl.BackgroundImage = System.Drawing.Image.FromFile(img);
 					}
 
 					txt = reader.GetAttribute("colour");
-					if ((txt != "") && (txt != null))
-                    {
+					if ((txt != "") && (txt != null)) {
 						xcolour = txt;
-						if ((xpos = xcolour.IndexOf(",")) > 0)
-                        {
+						if ((xpos = xcolour.IndexOf(",")) > 0) {
 							r = Convert.ToInt32(xcolour.Substring(0,xpos));
 							xcolour = xcolour.Substring(xpos+1);
 							xpos = xcolour.IndexOf(",");
@@ -3170,45 +3204,38 @@ namespace epos {
 							b = Convert.ToInt32(xcolour.Substring(xpos+1));
 							pnl.BackColor = System.Drawing.Color.FromArgb(r,g,b);
 						}
-						else
-                        {
+						else {
 							pnl.BackColor = System.Drawing.Color.FromName(xcolour);
 						}
 
 					}
-                    // if NOT a keypad holding panel
+					// if NOT a keypad holding panel
 					if ( (reader.GetAttribute("visible") == "true") && (
-                            (ptxt != "keypad".ToUpper() )
-                            && (ptxt != "emdkeypad".ToUpper())
-                            && (ptxt != "emdalphapad".ToUpper()) ) )
-                    {
+							(ptxt != "keypad".ToUpper() )
+							&& (ptxt != "emdkeypad".ToUpper())
+							&& (ptxt != "emdalphapad".ToUpper()) ) ) {
 						pnl.Visible = true;
 					}
-					else if (reader.GetAttribute("visible") == "false")
-                    {
+					else
+						if (reader.GetAttribute("visible") == "false") {
 						pnl.Visible = false;
 					}
-					else
-                    {
-                        // if a keypad holding panel, visibility depends on keypad ini setting
-                        if ((onscreenkeypad) && (
-                            ptxt == "keypad".ToUpper() || 
-                            ptxt == "emdkeypad".ToUpper() || 
-                            ptxt == "emdalphapad".ToUpper() )) 
-                        {
+					else {
+						// if a keypad holding panel, visibility depends on keypad ini setting
+						if ((onscreenkeypad) && (
+							ptxt == "keypad".ToUpper() || 
+							ptxt == "emdkeypad".ToUpper() || 
+							ptxt == "emdalphapad".ToUpper() )) {
 							pnl.Visible = true;
 						}
-						else
-                        {
+						else {
 							pnl.Visible = false;
 						}
 					}
-					if (reader.GetAttribute("enabled") == "false")
-                    {
+					if (reader.GetAttribute("enabled") == "false") {
 						pnl.Enabled = false;
 					}
-					else
-                    {
+					else {
 						pnl.Enabled = true;
 					}
 
@@ -3261,28 +3288,23 @@ namespace epos {
 				return;
 
 			reader = new XmlNodeReader(stateNodes[iNode]);
-
 			
 			cache[state].tbfocus = -1;
 			cache[state].lbfocus = -1;
 			cache[state].cbfocus = -1;
-
 			
-
-
 			this.SuspendLayout();
 
-			while (reader.Read()) {
+			while (reader.Read())
+			{
 				xxx = reader.Name;
-
 				
 				if (xxx.Equals("displaystate")) {
 					xxx = reader.GetAttribute("value");
-					displaystaterequired = Convert.ToInt32(xxx);
+					displaystaterequired = Convert.ToInt32(xxx);			
 
-			
-
-					if (displaystaterequired != displaystate) {
+					if (displaystaterequired != displaystate)
+					{
 						loaddisplay(displaystaterequired);
 						displaystate = displaystaterequired;
 					}
@@ -3597,6 +3619,14 @@ namespace epos {
 								for (idy = 0; idy < id.strcount4;idy++) {
 									cb1[idx].Items.Add(id.strarray4[idy]);
 								}
+							}
+							if (txt == "strarray5")
+							{
+								cb1[idx].Items.Clear();
+								for (idy = 0; idy < id.strcount5; idy++)
+								{
+									cb1[idx].Items.Add(id.strarray5[idy]);
+								}
 							}							
 				
 							if (cb1[idx].Items.Count > 0) {
@@ -3878,9 +3908,9 @@ namespace epos {
 					}
 				}
 				if (xxx.Equals("panel"))
-                {
+				{
 					if (reader.GetAttribute("name").ToUpper() == "ptouch".ToUpper())
-                    {
+					{
 						if (reader.GetAttribute("visible") == "true") {
 							PanelTouch.Visible = true;
 							cache[state].pTouchvis = true;
@@ -3896,154 +3926,147 @@ namespace epos {
 							cache[state].pTouchenb = true;
 						}
 					}
-                    else if (reader.GetAttribute("name").ToUpper() == "keypad".ToUpper())
-                    {
-						cache[state].paneluse = true; //?? what to do with cache state
+					else if (reader.GetAttribute("name").ToUpper() == "keypad".ToUpper())
+					{
+						cache[state].paneluse = true;
 						if (reader.GetAttribute("visible") == "false")
-                        {
+						{
 							panel1.Visible = false;
 							cache[state].panelvis = false;
 						}
 						else
-                        {
+						{
 							if (onscreenkeypad)
-                            {
+							{
 								if (this.ActiveControl == null)
-                                {
+								{
 								}
-                                else
-                                {
-									if (this.ActiveControl.Name.ToUpper() == "EB1")
-                                    {
+								else
+								{
+									if (this.ActiveControl.Name.ToUpper() == "EB1") {
 										CurrentTextBox = tb1[0];
 										currentcontrol = 0;
 									}
 								}
 								panel1.Visible = true;
-								if (panel1.Visible)
-                                {
+								if (panel1.Visible) {
 									panel1.BringToFront();
 								}
 								cache[state].panelvis = true;
 							}
-							else
-                            {
+							else {
 								panel1.Visible = false;
 								cache[state].panelvis = false;
 							}
 						}
 
-						if (reader.GetAttribute("enabled") == "false")
-                        {
+						if (reader.GetAttribute("enabled") == "false") {
 							panel1.Enabled = false;
 							cache[state].panelenb = false;
 						}
-						else
-                        {
+						else {
 							panel1.Enabled = true;
 							cache[state].panelenb = true;
 						}
 					}
 
+					else if (reader.GetAttribute("name").ToUpper() == "emdkeypad".ToUpper())
+					{
+						cache[state].paneluse = true;
+						if (reader.GetAttribute("visible") == "false")
+						{
+							emdNumericPanel.Visible = false;
+							cache[state].panelvis = false;
+						}
+						else
+						{
+							if (onscreenkeypad)
+							{
+								if (this.ActiveControl == null)
+								{
+								}
+								else
+								{
+									if (this.ActiveControl.Name.ToUpper() == "EB1")
+									{
+										CurrentTextBox = tb1[0];
+										currentcontrol = 0;
+									}
+								}
+								emdNumericPanel.Visible = true;
+								if (emdNumericPanel.Visible)
+								{
+									emdNumericPanel.BringToFront();
+								}
+								cache[state].panelvis = true;
+							}
+							else
+							{
+								emdNumericPanel.Visible = false;
+								cache[state].panelvis = false;
+							}
+						}
 
+						if (reader.GetAttribute("enabled") == "false")
+						{
+							emdNumericPanel.Enabled = false;
+							cache[state].panelenb = false;
+						}
+						else
+						{
+							emdNumericPanel.Enabled = true;
+							cache[state].panelenb = true;
+						}
+					}
 
-                    else if (reader.GetAttribute("name").ToUpper() == "emdkeypad".ToUpper())
-                    {
-                        cache[state].paneluse = true; //?? what to do with cache state
-                        if (reader.GetAttribute("visible") == "false")
-                        {
-                            emdNumericPanel.Visible = false;
-                            cache[state].panelvis = false;
-                        }
-                        else
-                        {
-                            if (onscreenkeypad)
-                            {
-                                if (this.ActiveControl == null)
-                                {
-                                }
-                                else
-                                {
-                                    if (this.ActiveControl.Name.ToUpper() == "EB1")
-                                    {
-                                        CurrentTextBox = tb1[0];
-                                        currentcontrol = 0;
-                                    }
-                                }
-                                emdNumericPanel.Visible = true;
-                                if (emdNumericPanel.Visible)
-                                {
-                                    emdNumericPanel.BringToFront();
-                                }
-                                cache[state].panelvis = true;
-                            }
-                            else
-                            {
-                                emdNumericPanel.Visible = false;
-                                cache[state].panelvis = false;
-                            }
-                        }
+					else // "emdalphapad"
+					{
+						cache[state].paneluse = true;
+						if (reader.GetAttribute("visible") == "false")
+						{
+							emdAlphaPanel.Visible = false;
+							cache[state].panelvis = false;
+						}
+						else
+						{
+							if (onscreenkeypad)
+							{
+								if (this.ActiveControl == null)
+								{
+								}
+								else
+								{
+									if (this.ActiveControl.Name.ToUpper() == "EB1")
+									{
+										CurrentTextBox = tb1[0];
+										currentcontrol = 0;
+									}
+								}
+								emdAlphaPanel.Visible = true;
+								if (emdAlphaPanel.Visible)
+								{
+									emdAlphaPanel.BringToFront();
+								}
+								cache[state].panelvis = true;
+							}
+							else
+							{
+								emdAlphaPanel.Visible = false;
+								cache[state].panelvis = false;
+							}
+						}
 
-                        if (reader.GetAttribute("enabled") == "false")
-                        {
-                            emdNumericPanel.Enabled = false;
-                            cache[state].panelenb = false;
-                        }
-                        else
-                        {
-                            emdNumericPanel.Enabled = true;
-                            cache[state].panelenb = true;
-                        }
-                    }
-
-                    else // "emdalphapad"
-                    {
-                        cache[state].paneluse = true; //?? what to do with cache state
-                        if (reader.GetAttribute("visible") == "false")
-                        {
-                            emdAlphaPanel.Visible = false;
-                            cache[state].panelvis = false;
-                        }
-                        else
-                        {
-                            if (onscreenkeypad)
-                            {
-                                if (this.ActiveControl == null)
-                                {
-                                }
-                                else
-                                {
-                                    if (this.ActiveControl.Name.ToUpper() == "EB1")
-                                    {
-                                        CurrentTextBox = tb1[0];
-                                        currentcontrol = 0;
-                                    }
-                                }
-                                emdAlphaPanel.Visible = true;
-                                if (emdAlphaPanel.Visible)
-                                {
-                                    emdAlphaPanel.BringToFront();
-                                }
-                                cache[state].panelvis = true;
-                            }
-                            else
-                            {
-                                emdAlphaPanel.Visible = false;
-                                cache[state].panelvis = false;
-                            }
-                        }
-
-                        if (reader.GetAttribute("enabled") == "false")
-                        {
-                            emdAlphaPanel.Enabled = false;
-                            cache[state].panelenb = false;
-                        }
-                        else
-                        {
-                            emdAlphaPanel.Enabled = true;
-                            cache[state].panelenb = true;
-                        }
-                    }
+						if (reader.GetAttribute("enabled") == "false")
+						{
+							emdAlphaPanel.Enabled = false;
+							cache[state].panelenb = false;
+						}
+						else
+						{
+							emdAlphaPanel.Enabled = true;
+							cache[state].panelenb = true;
+						}
+					}
 
 
 
@@ -4225,8 +4248,9 @@ namespace epos {
 					if (cache[state].xstrings[idx] != "")
 						st1[idx] = cache[state].xstrings[idx];
 			}
-
+			// use a panel then use emd before original numeric
 			if (cache[state].paneluse) {
+				//if keypad getchecked from namespace tag
 				panel1.Visible = cache[state].panelvis;
 				panel1.Enabled = cache[state].panelenb;
 				if (panel1.Visible) {
@@ -5018,31 +5042,31 @@ namespace epos {
 							cache[state].pTouchenb = true;
 						}
 					}
-                    else
-                    {
+					else
+					{
 						cache[state].paneluse = true;
 						if (reader.GetAttribute("visible") == "false")
-                        {
+						{
 							panel1.Visible = false;
 							cache[state].panelvis = false;
 						}
 						else {
 							if (onscreenkeypad)
-                            {
+							{
 								if (this.ActiveControl.Name.ToUpper() == "EB1")
-                                {
+								{
 									CurrentTextBox = tb1[0];
 									currentcontrol = 0;
 								}
 								panel1.Visible = true;
 								if (panel1.Visible)
-                                {
+								{
 									panel1.BringToFront();
 								}
 								cache[state].panelvis = true;
 							}
 							else
-                            {
+							{
 								panel1.Visible = false;
 								cache[state].panelvis = false;
 							}
@@ -5053,7 +5077,7 @@ namespace epos {
 							cache[state].panelenb = false;
 						}
 						else
-                        {
+						{
 							panel1.Enabled = true;
 							cache[state].panelenb = true;
 						}
@@ -5359,7 +5383,7 @@ namespace epos {
 			return;
 		}
 
-		#endregion
+		#endregion // controlmanipulation
 
 		#region statechange
 		private void newstate(int newstate) {
@@ -5371,8 +5395,8 @@ namespace epos {
 				checklabels(newstate,false);
 				if (newstate == 3)	// frig for highlight problem
 					lb1[0].Refresh();
-                if (newstate == 18)	// sjl: temporary fix to 'white text on mouse select'
-                    lb1[2].Refresh();
+				if (newstate == 18)	// sjl: temporary fix to 'white text on mouse select'
+					lb1[2].Refresh();
 				return;
 			}
 			m_prev_state = m_state;
@@ -5380,16 +5404,38 @@ namespace epos {
 			setupstate(newstate);
 			if (newstate == 3)	// frig for highlight problem
 				lb1[0].Refresh();
-            if (newstate == 18)	// sjl: temporary fix to 'white text on mouse select'
-                lb1[2].Refresh();
+			if (newstate == 18)	// sjl: temporary fix to 'white text on mouse select' BUG:15 v1.10
+				lb1[2].Refresh();
+			if (newstate == 12)
+			{
+				// sjl 16/09/2008 return item instead of sale if currlineisnegative
+				if (currlineisnegative)
+				{
+					changetext("LF4", "Return Item");
+				}
+			}
+			if (newstate == 69)
+			{
+				if (gotcustomer)
+				{
+					enablecontrol("BF6", true);
+					changetext("LF6", "Delivery Options");
+				}
+				else
+				{
+					enablecontrol("BF6", false);
+					changetext("LF6", "");
+				}
+			}
 
 			if (PanelNotes.Visible)
 				ButtonNotes.Focus();
 			m_state = newstate;
 		}
-		#endregion
+		#endregion // statechange
 
 		#region layaway
+
 		private bool savestate(instancedata id, orderdata ord, custdata cust, string custname, bool test) {
 			string inxml;
 			try {
@@ -5586,7 +5632,6 @@ namespace epos {
 					ord.lns[idx].ReasonCode = line.SelectSingleNode("ReasonCode").InnerXml;
 				}
 
-
 				ord.NumLines = lines.Count;
 
 				lb1[0].Items.Clear();
@@ -5614,7 +5659,7 @@ namespace epos {
 			return true;
 		}
 
-		#endregion
+		#endregion // layaway
 
 		#region state machine redirector
 		//
@@ -5943,12 +5988,19 @@ namespace epos {
 				case 71:		// Get Delivery Options
 					processstate_71(eventtype,eventname,eventtag,eventdata);
 					break;
-
-										
+				case 72:		// Get List of Addresses for customer
+					processstate_72(eventtype,eventname,eventtag,eventdata);
+					break;
+				case 73:		// Enter New Address
+					processstate_73(eventtype, eventname, eventtag, eventdata);
+					break;					
+				case 74:		// Show No Image with description
+					processstate_74(eventtype, eventname, eventtag, eventdata);
+					break;
 			}
 		}
 
-		#endregion
+		#endregion // state machine redirector
 
 		#region eventhandlers
 		#region picturebox
@@ -5971,8 +6023,7 @@ namespace epos {
 			//			lb1[1].Items.Add(idx.ToString());
 			//
 		}
-
-		#endregion
+		#endregion // picturebox
 		#region textbox
 		private void tb1_Enter(object sender, System.EventArgs e) {
 
@@ -6088,14 +6139,13 @@ namespace epos {
 				txt = zz.Text;
 
 				clearerrormessage(); 	// remove any previous error messages
-
-				stateengine(m_state,stateevents.textboxcret,cname,idx,txt);
+				stateengine(m_state, stateevents.textboxcret, cname, idx, txt);
 				e.Handled = true;
 
 			}
 
 		}
-		#endregion
+		#endregion // textbox
 		#region listbox
 		private void lb1_SelectedIndexChanged(object sender, System.EventArgs e) {
 			int idx;
@@ -6312,16 +6362,25 @@ namespace epos {
 				}
 			}
 
-			if ((!e.Alt) && (!e.Shift) && (e.Control)) {
-				if (e.KeyCode == Keys.R) {
-					if (printorder.OrderNumber != "") {
-						printit(true,false,"",false);
-						e.Handled = true;
-						return;
+			if ((!e.Alt) && (!e.Shift) && (e.Control))
+			{
+
+				if (e.KeyCode == Keys.R)
+				{
+					if (printorder != null)
+					{
+						if (printorder.OrderNumber != "")
+						{
+							printit(true, false, "", false);
+							e.Handled = true;
+							return;
+						}
+					}
+					else
+					{
+						MessageBox.Show("Unable to print, no print order found. ", "Reprint Receipt");
 					}
 				}
-
-
 			}
 			if ((!e.Alt) && (!e.Shift)) {
 				// if function key then process via state engine
@@ -6449,52 +6508,75 @@ namespace epos {
 
 			e.Handled = false;
 		}
-
-		private void MainForm_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e) {
-			int x,y;
-
+		private void MainForm_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e)
+		{
+			int x, y;
+			//*
 			if (!onscreenkeypad)
 				return;
-
 
 			x = e.X;
 			y = e.Y;
 
 			if ((x > 760) && (x < 1000) && (y > 688) && (y < 760))
-            {
-                if (!panel1.Visible && !emdNumericPanel.Visible && !emdNumericPanel.Visible)
-                {
+			{
+
+				if (!panel1.Visible)
+				{
 					if (this.ActiveControl.Name == "EB1")
-                    {
+					{
+						CurrentTextBox = tb1[0];
+						currentcontrol = 0;
+					}
+				}
+				panel1.Visible = !panel1.Visible;
+				if (panel1.Visible)
+				{
+					panel1.BringToFront();
+				}
+			}
+			//*/
+			/*
+			int x,y;
+
+			if (!onscreenkeypad)
+				return;
+
+			x = e.X;
+			y = e.Y;
+
+			if ((x > 760) && (x < 1000) && (y > 688) && (y < 760))
+			{
+				if (!panel1.Visible && !emdNumericPanel.Visible && !emdNumericPanel.Visible)
+				{
+					if (this.ActiveControl.Name == "EB1")
+					{
 						CurrentTextBox = tb1[0];
 						currentcontrol = 0;
 					}
 				}
 
-                if (emdAlphaPanel.Visible)
-                {
-                    emdAlphaPanel.Visible = false;
-                    emdNumericPanel.Visible = true;
-                    emdNumericPanel.BringToFront();
-
-                    //emdvBoardDlg1.ShowCalculator(20.00);
-                }
-                else if (emdNumericPanel.Visible)
-                {
-                    emdNumericPanel.Visible = false;
-                    //emdvBoardDlg1.ShowCalculator(20.00);
-                    emdAlphaPanel.Visible = false;
-                }
-                else
-                {
-                    emdNumericPanel.Visible = false;
-                    emdAlphaPanel.Visible = true;
-                    emdAlphaPanel.BringToFront();
-                }
+				if (emdAlphaPanel.Visible)
+				{
+					emdAlphaPanel.Visible = false;
+					emdNumericPanel.Visible = true;
+					emdNumericPanel.BringToFront();
+				}
+				else if (emdNumericPanel.Visible)
+				{
+					emdNumericPanel.Visible = false;
+					emdAlphaPanel.Visible = false;
+				}
+				else
+				{
+					emdNumericPanel.Visible = false;
+					emdAlphaPanel.Visible = true;
+					emdAlphaPanel.BringToFront();
+				}
 			}
+			//*/
 		}
-
-		#endregion
+		#endregion // form
 		#region button
 		private void button1_Click(object sender, System.EventArgs e) {
 			string val;
@@ -6547,8 +6629,15 @@ namespace epos {
 
 				}
 			}
+			// error with refunding discounts: TEMP fix sales discount is line discount.
+			if ((m_state == 39) && (val == "{ENTER}")) // accept discount amount
+			{
+				// TODO: ACCEPT should be used but has return full value bug.
+				Application.DoEvents();
+				//processstate_39(stateevents.functionkey, "", 0, "ACCEPT");
+			}
 			Application.DoEvents();
-			SendKeys.Send(val);
+			SendKeys.Send(val);			
 		}
 
 		private void buttonenter_MouseDown(object sender, System.Windows.Forms.MouseEventArgs e) {
@@ -6570,11 +6659,18 @@ namespace epos {
 			SetWindowText((int)this.Handle,new StringBuilder("Elucid EPOS"));
 		}
 
+		private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
+		{
+			//TODO: Attempt to capture 'Aplication Error' on close.
+		}
+
 		#endregion
-		#endregion
+		#endregion // eventhandlers
 
 		#region utilities
+
 		#region controlmanipulation
+
 		private decimal getoutstanding(orderdata currentorder) {
 			decimal outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal - currentorder.CashVal;
 			return outstanding;
@@ -6612,6 +6708,7 @@ namespace epos {
 
 			try {
 
+				//decimal running_discount_total = 0.00M;
 
 				newstr = newstr.Replace("$ITEMVAL",m_item_val);
 				newstr = newstr.Replace("$PRICE",currentpart.Price.ToString("F02").PadLeft(20));
@@ -6620,18 +6717,19 @@ namespace epos {
 				newstr = newstr.Replace("$ITEMS",getitems(currentorder).ToString());
 				newstr = newstr.Replace("$CHANGE",currentorder.ChangeVal.ToString("F02").PadLeft(20));
 				newstr = newstr.Replace("$OUTS",getoutstanding(currentorder).ToString("F02"));
-				newstr = newstr.Replace("$FOOT4",currentorder.TotVal.ToString("F02"));
+				newstr = newstr.Replace("$FOOT4",currentorder.TotVal.ToString("F02"));	
+				
 				newstr = newstr.Replace("$FOOT5",currentorder.DiscountVal.ToString("F02"));
 				newstr = newstr.Replace("$FOOT6",(currentorder.TotVal-currentorder.DiscountVal).ToString("F02"));
 				newstr = newstr.Replace("$PART",currentpart.PartNumber);
 				newstr = newstr.Replace("$DESCR",currentpart.Description);
-				newstr = newstr.Replace("$PARTDESC",(currentpart.Description+"                    ").Substring(0,20));
+				newstr = newstr.Replace("$PARTDESC", (currentpart.Description + "                    ").Substring(0, 20));
 				if (currentcust.Customer == id.CashCustomer)
-                {
+				{
 					newstr = newstr.Replace("$CUST",st1[33].Trim());
 
-                    newstr = newstr.Replace("Trade:", "");
-                    newstr = newstr.Replace("$TRADE", "");
+					newstr = newstr.Replace("Trade:", "");
+					newstr = newstr.Replace("$TRADE", "");
 
 				}
 				else {
@@ -6641,16 +6739,16 @@ namespace epos {
 					else {
 						newstr = newstr.Replace("$CUST",(currentcust.Title + " " + currentcust.Surname).Trim());
 					}
-                    // sjl: added new trade label, for viewing trade account balance.
-                    if (currentcust.TradeAccount == "T")
-                    {
-                        newstr = newstr.Replace("$TRADE", Convert.ToString( currentcust.Balance ) );
-                    }
-                    else
-                    {
-                        newstr = newstr.Replace("Trade:", "");
-                        newstr = newstr.Replace("$TRADE", "");
-                    }
+					// sjl: added new trade label, for viewing trade account balance.
+					if (currentcust.TradeAccount == "T")
+					{
+						newstr = newstr.Replace("$TRADE", Convert.ToString( currentcust.Balance ) );
+					}
+					else
+					{
+						newstr = newstr.Replace("Trade:", "");
+						newstr = newstr.Replace("$TRADE", "");
+					}
 				}
 				newstr = newstr.Replace("$PND","£");
 				newstr = newstr.Replace(@"\r","\r\n");
@@ -6788,91 +6886,130 @@ namespace epos {
 			return false;
 		}
 
-		private void loadimage(string control, string imagefile) {
+		private bool loadimage(string control, string imagefile)
+		{
 			int idx;
-			for (idx = 0; idx < pbcount; idx++) {
-				if (pb1[idx].Name == control) {	
-					try {
-						//						pb1[idx].Image = System.Drawing.Image.FromFile(imagedirectory + "/" + "NoImage.jpg");
+			for (idx = 0; idx < pbcount; idx++)
+			{
+				if (pb1[idx].Name == control)
+				{
+					try
+					{
 						pb1[idx].Image = System.Drawing.Image.FromFile(imagedirectory + "\\" + imagefile);
-						return;
+						pb1[idx].Refresh();
+						return true;
 					}
-					catch (Exception) {
+					catch (Exception)
+					{
 						pb1[idx].Image = System.Drawing.Image.FromFile(imagedirectory + "\\" + "NoImage.jpg");
-						return;
-
+						return false;
 					}
 
 				}
 			}
+			return false;
 		}
 
-		private string splitdescription(string description,int wid, System.Drawing.Font fnt) {
-
+		private string splitdescription(string description,int wid, System.Drawing.Font fnt)
+		{
+			/* NOTE:
+			 * 
+			 * elucid puts a carriage return into the DB (\r, one char)
+			 * .NET label uses a carriage return and linefeed (\r\n, two chars)
+			 * 
+			*/
+#if PRINT_TO_FILE
 			string path = tracedirectory + "\\MJGSPLIT.txt";
 
 			StreamWriter f = new StreamWriter(path,false);
-
+#endif
 			string tmpstr = description;
 			string res = "";
-			tmpstr = tmpstr.Replace("\r","").Replace("\n"," ").Replace("&amp;","&").Replace("&lt;br&gt;"," ");
-			char [] spc = {' '};
+			//tmpstr = tmpstr.Replace("\r","").Replace("\n"," ").Replace("&amp;","&").Replace("&lt;br&gt;"," ");
+			// sjl 21/08/2008: Replace \r for CR+LF for label display
+			tmpstr = tmpstr.Replace("\r", "\r\n").Replace("&amp;", "&").Replace("&lt;br&gt;", " ");
+			char[] spc = { ' ' };
 			string [] words = tmpstr.Split(spc);
 			int nwords = words.Length;
 
 			string teststr = "";
-			for (int idx = 0; idx < nwords; idx++) {
+			for (int idx = 0; idx < nwords; idx++)
+			{
 				string xstr;
-				if (teststr == "") {
+				if (teststr == "")
+				{
 					xstr = words[idx];
-				} else {
+				}
+				else
+				{
 					xstr = teststr + " " + words[idx];
 				}
 
 				SizeF sz = StringSize(xstr,fnt);
-				if (sz.Width > wid) {
-					if (res == "") {
+				if ((sz.Width) > wid)
+				{
+					if (res == "")
+					{
 						res = teststr;
-					} else {
+					}
+					else
+					{
 						res = res + "\r\n" + teststr;
 					}
 					teststr = words[idx];
-				} else {
-					if (teststr == "") {
+				}
+				else
+				{
+					if (teststr == "")
+					{
 						teststr = words[idx];
-					} else {
+					}
+					else
+					{
 						teststr += " " + words[idx];
 					}
 				}
-
 			}
-			if (teststr != "") {
-				if (res == "") {
+			if (teststr != "")
+			{
+				if (res == "")
+				{
 					res = teststr;
-				} else {
+				}
+				else
+				{
 					res = res + "\r\n" + teststr;
 				}
 			}
-
+#if PRINT_TO_FILE
 			f.Write(res);
 			f.Close();
-
+#endif
 			return res;
 		}
 		private void loadfulldesc(string control, string description) {
 			int idx;
-			for (idx = 0; idx < labcount; idx++) {
-				if (lab1[idx].Name == control) {
+			for (idx = 0; idx < labcount; idx++)
+			{
+				if (lab1[idx].Name == control)
+				{
 					if (lab1[idx].AccessibleName == "ppp") {
 						int panelwidth = lab1[idx].Parent.Width;
-						description = splitdescription(description,panelwidth-80,lab1[idx].Font);
+						// sjl 22/08/2008: increase panelwidth subtraction
+						description = splitdescription(description,panelwidth-98,lab1[idx].Font);
 						SizeF sz = StringSize(description,lab1[idx].Font);
 						lab1[idx].Height = (int) sz.Height + 40;
 						lab1[idx].Width = (int) sz.Width + 80;
-				//		lab1[idx].AutoSize = true;
+
+						lab1[idx].AutoSize = true;
+						//lab1[idx].MaximumHeight = (int)sz.Height + 40;
+						//lab1[idx].MaximumSize.Width = (int)sz.Width + 80;
 
 					}
 					lab1[idx].Text = description;
+
+					lab1[idx].Visible = true;
+
 					return;
 				}
 			}
@@ -6916,20 +7053,39 @@ namespace epos {
 
 		}
 
-		private SizeF StringSize(string Str,Font Fontx) {
-		Bitmap bmp;
-		bmp = new Bitmap(1, 1);
-		Graphics gr  = Graphics.FromImage(bmp);
-		SizeF Sz  = gr.MeasureString(Str, Font);
-		Sz.Width = (float)Math.Ceiling((double)Sz.Width);
-		Sz.Height = (float)Math.Ceiling((double)Sz.Height);
-		gr.Dispose();
-		return Sz;
+		private SizeF StringSize(string Str,Font Fontx)
+		{
+			Bitmap bmp;
+			bmp = new Bitmap(1, 1);
+			Graphics gr  = Graphics.FromImage(bmp);
+			SizeF Sz  = gr.MeasureString(Str, Font);
+			Sz.Width = (float)Math.Ceiling((double)Sz.Width);
+			Sz.Height = (float)Math.Ceiling((double)Sz.Height);
+			gr.Dispose();
+			return Sz;
 		}
 
-		#endregion
+		private string returnAsTitleCase(string unknownCase)
+		{
+			string resultInitials = "";
+			try
+			{
+				resultInitials = unknownCase.ToLower();
+
+				resultInitials = resultInitials.Replace("m", "M");
+				resultInitials = resultInitials.Replace("d", "D");
+			}
+			catch
+			{
+				return "";
+			}
+			return resultInitials;
+		}
+
+		#endregion // controlmanipulation
 
 		#region general utilities
+
 		private void clearerrormessage() {
 			if (hdg6waserror) {
 				changetext("L_HDG6","");	
@@ -7212,7 +7368,7 @@ namespace epos {
 						continue;
 					}
 
-					// find last line witrh current product group
+					// find last line with current product group
 
 					for (idx = currentorder.NumLines - 1; idx >= 0; idx--) {
 						if (currentorder.lns[idx].ProdGroup == pg[lv]) {
@@ -7826,12 +7982,9 @@ namespace epos {
 			return tmpStr.TrimEnd();
 
 
-
-
-
 		}
 
-        private string layoutcustsearch(string ccode, string cfname, string csname, string cpostcode, string caddress, string ccompany, string cphoneday, string cemail, string ccity, string ctradeaccount, bool cmedicalexemption) {
+		private string layoutcustsearch(string ccode, string cfname, string csname, string cpostcode, string caddress, string ccompany, string cphoneday, string cemail, string ccity, string ctradeaccount, bool cmedicalexemption) {
 			int stcode;
 			int lncode;
 			int stfname;
@@ -7840,80 +7993,82 @@ namespace epos {
 			int lnsname;
 			int stpostcode;
 			int lnpostcode;
-            int staddress;
-            int lnaddress;
-            int stcompany;
-            int lncompany;
-            int stphoneday;
-            int lnphoneday;
-            int stemail;
-            int lnemail;
-            int stcity;
-            int lncity;
-            int sttradeaccount;
-            int lntradeaccount;
-            int stmedicalexemption;
-            int lnmedicalexemption;
+			int staddress;
+			int lnaddress;
+			int stcompany;
+			int lncompany;
+			int stphoneday;
+			int lnphoneday;
+			int stemail;
+			int lnemail;
+			int stcity;
+			int lncity;
+			int sttradeaccount;
+			int lntradeaccount;
+			int stmedicalexemption;
+			int lnmedicalexemption;
 
-
-			string tmpStr = "                                                                                                                ";
+			string tmpStr = "                                                                                                        ";
 			string tmpStr2;
 
 			stcode = int.Parse(this.ccodelayout.Substring(0,this.ccodelayout.IndexOf(",")));
 			stcode--;		// make zero-relative
 			lncode = int.Parse(this.ccodelayout.Substring(this.ccodelayout.IndexOf(",")+1));
+			// INITIALS
 			stfname = int.Parse(this.cfnamelayout.Substring(0,this.cfnamelayout.IndexOf(",")));
 			stfname--;		// make zero-relative
 			lnfname = int.Parse(this.cfnamelayout.Substring(this.cfnamelayout.IndexOf(",")+1));
+
 			stsname = int.Parse(this.csnamelayout.Substring(0,this.csnamelayout.IndexOf(",")));
 			stsname--;		// make zero-relative
 			lnsname = int.Parse(this.csnamelayout.Substring(this.csnamelayout.IndexOf(",")+1));
+
 			stpostcode = int.Parse(this.cpostcodelayout.Substring(0,this.cpostcodelayout.IndexOf(",")));
 			stpostcode--;		// make zero-relative
 			lnpostcode = int.Parse(this.cpostcodelayout.Substring(this.cpostcodelayout.IndexOf(",")+1));
 
-            staddress = int.Parse(this.caddresslayout.Substring(0, this.caddresslayout.IndexOf(",")));
-            staddress--;		// make zero-relative
-            lnaddress = int.Parse(this.caddresslayout.Substring(this.caddresslayout.IndexOf(",") + 1));
+			staddress = int.Parse(this.caddresslayout.Substring(0, this.caddresslayout.IndexOf(",")));
+			staddress--;		// make zero-relative
+			lnaddress = int.Parse(this.caddresslayout.Substring(this.caddresslayout.IndexOf(",") + 1));
 
-            stcompany = int.Parse(this.ccompanylayout.Substring(0, this.ccompanylayout.IndexOf(",")));
-            stcompany--;		// make zero-relative
-            lncompany = int.Parse(this.ccompanylayout.Substring(this.ccompanylayout.IndexOf(",") + 1));
+			stcompany = int.Parse(this.ccompanylayout.Substring(0, this.ccompanylayout.IndexOf(",")));
+			stcompany--;		// make zero-relative
+			lncompany = int.Parse(this.ccompanylayout.Substring(this.ccompanylayout.IndexOf(",") + 1));
 
-            stphoneday = int.Parse(this.cphonedaylayout.Substring(0, this.cphonedaylayout.IndexOf(",")));
-            stphoneday--;		// make zero-relative
-            lnphoneday = int.Parse(this.cphonedaylayout.Substring(this.cphonedaylayout.IndexOf(",") + 1));
+			stphoneday = int.Parse(this.cphonedaylayout.Substring(0, this.cphonedaylayout.IndexOf(",")));
+			stphoneday--;		// make zero-relative
+			lnphoneday = int.Parse(this.cphonedaylayout.Substring(this.cphonedaylayout.IndexOf(",") + 1));
 
-            stemail = int.Parse(this.cemaillayout.Substring(0, this.cemaillayout.IndexOf(",")));
-            stemail--;		// make zero-relative
-            lnemail = int.Parse(this.cemaillayout.Substring(this.cemaillayout.IndexOf(",") + 1));
+			stemail = int.Parse(this.cemaillayout.Substring(0, this.cemaillayout.IndexOf(",")));
+			stemail--;		// make zero-relative
+			lnemail = int.Parse(this.cemaillayout.Substring(this.cemaillayout.IndexOf(",") + 1));
 
-            stcity = int.Parse(this.ccitylayout.Substring(0, this.ccitylayout.IndexOf(",")));
-            stcity--;		// make zero-relative
-            lncity = int.Parse(this.ccitylayout.Substring(this.ccitylayout.IndexOf(",") + 1));
+			stcity = int.Parse(this.ccitylayout.Substring(0, this.ccitylayout.IndexOf(",")));
+			stcity--;		// make zero-relative
+			lncity = int.Parse(this.ccitylayout.Substring(this.ccitylayout.IndexOf(",") + 1));
 
-            sttradeaccount = int.Parse(this.ctradeaccountlayout.Substring(0, this.ctradeaccountlayout.IndexOf(",")));
-            sttradeaccount--;		// make zero-relative
-            lntradeaccount = int.Parse(this.ctradeaccountlayout.Substring(this.ctradeaccountlayout.IndexOf(",") + 1));
+			sttradeaccount = int.Parse(this.ctradeaccountlayout.Substring(0, this.ctradeaccountlayout.IndexOf(",")));
+			sttradeaccount--;		// make zero-relative
+			lntradeaccount = int.Parse(this.ctradeaccountlayout.Substring(this.ctradeaccountlayout.IndexOf(",") + 1));
 
-            stmedicalexemption = int.Parse(  this.cmedicalexemptionlayout.Substring(0, this.cmedicalexemptionlayout.IndexOf(",")));
-            stmedicalexemption--;		// make zero-relative
-            lnmedicalexemption = int.Parse(this.cmedicalexemptionlayout.Substring(this.cmedicalexemptionlayout.IndexOf(",") + 1));
+			stmedicalexemption = int.Parse(  this.cmedicalexemptionlayout.Substring(0, this.cmedicalexemptionlayout.IndexOf(",")));
+			stmedicalexemption--;		// make zero-relative
+			lnmedicalexemption = int.Parse(this.cmedicalexemptionlayout.Substring(this.cmedicalexemptionlayout.IndexOf(",") + 1));
 
-
-			if (lncode > 0) {
+			if (lncode > 0)
+			{
 				tmpStr2 = pad(ccode,lncode);
-				tmpStr = tmpStr.Substring(0,stcode) + tmpStr2 + tmpStr.Substring(stcode+lncode);
+				tmpStr = tmpStr.Substring(0, stcode) + tmpStr2 + tmpStr.Substring(stcode + lncode);
 			}
 
 			if (lnfname > 0) {
 				tmpStr2 = pad(cfname,lnfname);
-				tmpStr = tmpStr.Substring(0,stfname) + tmpStr2 + tmpStr.Substring(stfname+lnfname);
+				tmpStr = tmpStr.Substring(0, stfname) + tmpStr2 + tmpStr.Substring(stfname + lnfname);
 			}
 
 			if (lnsname > 0) {
 				tmpStr2 = pad(csname,lnsname);
-				tmpStr = tmpStr.Substring(0,stsname) + tmpStr2 + tmpStr.Substring(stsname+lnsname);
+				tmpStr = tmpStr.Substring(0, stsname) + tmpStr2 + tmpStr.Substring(stsname + lnsname);
 			}
 
 			if (lnpostcode > 0) {
@@ -7921,55 +8076,99 @@ namespace epos {
 				tmpStr = tmpStr.Substring(0,stpostcode) + tmpStr2 + tmpStr.Substring(stpostcode+lnpostcode);
 			}
 
-            if (lnaddress > 0)
-            {
-                tmpStr2 = pad(caddress, lnaddress);
-                tmpStr = tmpStr.Substring(0, staddress) + tmpStr2 + tmpStr.Substring(staddress + lnaddress);
-            }
-            if (lncompany > 0)
-            {
-                tmpStr2 = pad(ccompany, lncompany);
-                tmpStr = tmpStr.Substring(0, stcompany) + tmpStr2 + tmpStr.Substring(stcompany + lncompany);
-            }
-            if (lnphoneday > 0)
-            {
-                tmpStr2 = pad(cphoneday, lnphoneday);
-                tmpStr = tmpStr.Substring(0, stphoneday) + tmpStr2 + tmpStr.Substring(stphoneday + lnphoneday);
-            }
-            if (lnemail > 0)
-            {
-                tmpStr2 = pad(cemail, lnemail);
-                tmpStr = tmpStr.Substring(0, stemail) + tmpStr2 + tmpStr.Substring(stemail + lnemail);
-            }
-            if (lncity > 0)
-            {
-                tmpStr2 = pad(ccity, lncity);
-                tmpStr = tmpStr.Substring(0, stcity) + tmpStr2 + tmpStr.Substring(stcity + lncity);
-            }
-            if (lntradeaccount > 0)
-            {
-                tmpStr2 = pad(ctradeaccount, lntradeaccount);
-                tmpStr = tmpStr.Substring(0, sttradeaccount ) + tmpStr2 + tmpStr.Substring(sttradeaccount + lntradeaccount);
-            }
-            if (lnmedicalexemption > 0)
-            {
-                string medicalStr = Convert.ToString(cmedicalexemption);
+			if (lnaddress > 0)
+			{
+				tmpStr2 = pad(caddress, lnaddress);
+				tmpStr = tmpStr.Substring(0, staddress) + tmpStr2 + tmpStr.Substring(staddress + lnaddress);
+			}
+			if (lncompany > 0)
+			{
+				tmpStr2 = pad(ccompany, lncompany);
+				tmpStr = tmpStr.Substring(0, stcompany) + tmpStr2 + tmpStr.Substring(stcompany + lncompany);
+			}
+			if (lnphoneday > 0)
+			{
+				tmpStr2 = pad(cphoneday, lnphoneday);
+				tmpStr = tmpStr.Substring(0, stphoneday) + tmpStr2 + tmpStr.Substring(stphoneday + lnphoneday);
+			}
+			if (lnemail > 0)
+			{
+				tmpStr2 = pad(cemail, lnemail);
+				tmpStr = tmpStr.Substring(0, stemail) + tmpStr2 + tmpStr.Substring(stemail + lnemail);
+			}
+			if (lncity > 0)
+			{
+				tmpStr2 = pad(ccity, lncity);
+				tmpStr = tmpStr.Substring(0, stcity) + tmpStr2 + tmpStr.Substring(stcity + lncity);
+			}
+			if (lntradeaccount > 0)
+			{
+				tmpStr2 = pad(ctradeaccount, lntradeaccount);
+				tmpStr = tmpStr.Substring(0, sttradeaccount ) + tmpStr2 + tmpStr.Substring(sttradeaccount + lntradeaccount);
+			}
+			if (lnmedicalexemption > 0)
+			{
+				string medicalStr = Convert.ToString(cmedicalexemption);
 
-                tmpStr2 = pad(medicalStr, lnmedicalexemption);
-                tmpStr = tmpStr.Substring(0, stmedicalexemption) + tmpStr2 + tmpStr.Substring(stmedicalexemption + lnmedicalexemption);
-            }
+				tmpStr2 = pad(medicalStr, lnmedicalexemption);
+				tmpStr = tmpStr.Substring(0, stmedicalexemption) + tmpStr2 + tmpStr.Substring(stmedicalexemption + lnmedicalexemption);
+			}
 
 
 			return tmpStr.TrimEnd();
 
-
-
-
-
 		}
 
-		#endregion
-		#endregion
+		private string layoutaddresssearch(string caddress, string cpostcode, string ccity) {
+
+			int staddress;
+			int lnaddress;
+			int stpostcode;
+			int lnpostcode;
+			int stcity;
+			int lncity;
+
+			string tmpStr = "                                                                                                                ";
+			string tmpStr2;
+
+			//staddress = int.Parse(this.caddresslayout.Substring(0, this.caddresslayout.IndexOf(",")));
+			//staddress--;		// make zero-relative
+			//lnaddress = int.Parse(this.caddresslayout.Substring(this.caddresslayout.IndexOf(",") + 1));
+			staddress = 0;			lnaddress = 30;
+
+			//stpostcode = int.Parse(this.cpostcodelayout.Substring(0, this.cpostcodelayout.IndexOf(",")));
+			//lnpostcode = int.Parse(this.cpostcodelayout.Substring(this.cpostcodelayout.IndexOf(",") + 1));
+			stpostcode = 31;		lnpostcode = 8;
+
+			//stcity = int.Parse(this.ccitylayout.Substring(0, this.ccitylayout.IndexOf(",")));
+			//stcity--;		// make zero-relative
+			//lncity = int.Parse(this.ccitylayout.Substring(this.ccitylayout.IndexOf(",") + 1));
+			stcity = 39;			lncity = 12;
+
+			if (lnaddress > 0)
+			{
+				tmpStr2 = pad(caddress, lnaddress);
+				tmpStr = tmpStr.Substring(0, staddress) + tmpStr2 + tmpStr.Substring(staddress + lnaddress);
+			}
+			if (lnpostcode > 0)
+			{
+				tmpStr2 = pad(cpostcode, lnpostcode);
+				tmpStr = tmpStr.Substring(0, stpostcode) + tmpStr2 + tmpStr.Substring(stpostcode + lnpostcode);
+			}
+			if (lncity > 0)
+			{
+				tmpStr2 = pad(ccity, lncity);
+				tmpStr = tmpStr.Substring(0, stcity) + tmpStr2 + tmpStr.Substring(stcity + lncity);
+			}
+
+			tmpStr = tmpStr.Replace("\r\n",", ");
+
+			return tmpStr.TrimEnd();
+		}
+
+		#endregion // general utilities
+
+		#endregion // utilities
 
 		#region stateprocessors
 
@@ -8157,18 +8356,15 @@ namespace epos {
 				if (eventdata == "")
 					return;
 
-
 				currentpart.PartNumber = eventdata;
 				currentpart.Qty = 1;
 				erc = elucid.validatepart(id,currentpart,currentcust,false);
-				if (erc == 0) {
+				if (erc == 0)
+                {
+					paintdisplay((currentpart.Description + "                    ").Substring(0, 20) + "\r\n" + rpad(currentpart.Price.ToString("F02"), 20));
 
-
-
-
-					paintdisplay((currentpart.Description+"                    ").Substring(0,20) +"\r\n" + rpad(currentpart.Price.ToString("F02"),20));
-
-					if ((currentpart.Script != "") || (currentpart.Notes != "")) {
+					if ((currentpart.Script != "") || (currentpart.Notes != ""))
+					{
 						if ((currentpart.FromDate <= DateTime.Now.Date) && (currentpart.ToDate >= DateTime.Now.Date)) {
 							shownotes(currentpart.Script + "\r\n" + currentpart.Notes,st1[58]);
 						}
@@ -8247,7 +8443,7 @@ namespace epos {
 						if (currentorder.lns[idx].DiscPercent == 0.0M) { // absolute discount
 							txt = pad("Discount",37) + " " + rpad((-currentorder.lns[idx].Discount).ToString("F02"),7);
 						}
-						else {				 // percventage discount
+						else {				 // percentage discount
 							txt = pad(currentorder.lns[idx].DiscPercent.ToString() + "% Discount",37) + " " + rpad((-currentorder.lns[idx].Discount).ToString("F02"),7);
 						}
 						lb1[0].Items.Add("txt");
@@ -8476,7 +8672,7 @@ namespace epos {
 					erc = elucid.validatepart(id,currentpart,currentcust,false);
 				}
 				if (erc == 0) {
-					paintdisplay((currentpart.Description+"                    ").Substring(0,20) +"\r\n" + rpad(currentpart.Price.ToString("F02"),20));
+					paintdisplay((currentpart.Description + "                    ").Substring(0, 20) + "\r\n" + rpad(currentpart.Price.ToString("F02"), 20));
 
 					
 					if ((currentpart.Script != "") || (currentpart.Notes != "")) {
@@ -8850,7 +9046,8 @@ namespace epos {
 							lb1[3].Items.Add(st1[26]);
 						}
 						for (idx = 0; idx < stocksearchres.NumLines; idx++) {
-							txt = pad(stocksearchres.lns[idx].SiteDescription,33) + " " +  rpad(stocksearchres.lns[idx].Qty.ToString(),3);
+							// max 47 chars for line.
+							txt = pad(stocksearchres.lns[idx].SiteDescription, 37) + " " +  rpad(stocksearchres.lns[idx].Qty.ToString(), 6);
 							lb1[3].Items.Add(txt);
 						}
 						m_calling_state = 4;
@@ -8987,7 +9184,7 @@ namespace epos {
 				currentpart.Qty = 1;
 				erc = elucid.validatepart(id,currentpart,currentcust,false);
 				if (erc == 0) {
-					paintdisplay((currentpart.Description+"                    ").Substring(0,20) +"\r\n" + rpad(currentpart.Price.ToString("F02"),20));
+					paintdisplay((currentpart.Description + "                    ").Substring(0, 20) + "\r\n" + rpad(currentpart.Price.ToString("F02"), 20));
 					if ((currentpart.Script != "") || (currentpart.Notes != "")) {
 						if ((currentpart.FromDate <= DateTime.Now.Date) && (currentpart.ToDate >= DateTime.Now.Date)) {
 							shownotes(currentpart.Script + "\r\n" + currentpart.Notes,st1[58]);
@@ -9504,8 +9701,7 @@ namespace epos {
 							currentorder.lns[idx].ManualDiscountGiven = (newdiscount != 0.00M);
 							currentorder.TotVal += (currentorder.lns[idx].LineValue  - currentorder.lns[idx].Discount);
 							currentorder.TotNetVal = currentorder.TotNetVal + currentorder.lns[idx].LineNetValue;
-							currentorder.TotTaxVal = currentorder.TotTaxVal + currentorder.lns[idx].LineTaxValue;
-							currentpart.Price = currentorder.lns[idx].CurrentUnitPrice;
+							currentorder.TotTaxVal = currentorder.TotTaxVal + currentorder.lns[idx].LineTaxValue;							currentpart.Price = currentorder.lns[idx].CurrentUnitPrice;
 							recalcordertotal(id,currentorder);
 							m_item_val = currentpart.Price.ToString("F02");
 							m_tot_val = currentorder.TotVal.ToString("F02");
@@ -9671,7 +9867,6 @@ namespace epos {
 			int idx;
 			decimal outstanding;
 
-
 			if (eventtype == stateevents.functionkey) {
 				if (eventdata == "CASH") {		// cash
 					this.processing_deposit_finance = false;
@@ -9708,14 +9903,13 @@ namespace epos {
 					this.processing_deposit_finance = true;
 					outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal;
 					this.m_item_val = outstanding.ToString("F02");
+
 					newstate(69);		// New state for Deposit/Finance options
 					//					if (outstanding > 0)
 					if (outstanding != 0) {
 						changetext("EB1",outstanding.ToString("F02"));
 					}
 					
-					enablecontrol("BF6",gotcustomer);
-
 					return;
 				}
 				if (eventdata == "CARD") {		// credit card
@@ -9753,7 +9947,6 @@ namespace epos {
 						this.enablecontrol("BF5",false);
 						fillvouchers(currentcust);
 					}
-
 
 					if (outstanding > 0) {
 						enablecontrol("BF1",false);
@@ -9859,7 +10052,7 @@ namespace epos {
 			int erc;
 			string txt;
 			int idx;
-
+			//?? allow F8 
 			if (eventtype == stateevents.functionkey) {
 				if (eventdata == "SEARCHPART") {
 					processstate_11(stateevents.textboxcret,eventname,eventtag,tb1[0].Text);
@@ -9891,7 +10084,7 @@ namespace epos {
 						}
 						for (idx = 0; idx < searchres.NumLines; idx++) {
 							searchres.lns[idx].Qty = 1;
-							//							txt = pad(searchres.lns[idx].Description,27) + " " + pad(searchres.lns[idx].PartNumber,6) + rpad(searchres.lns[idx].Qty.ToString(),3) + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7);
+//							txt = pad(searchres.lns[idx].Description,27) + " " + pad(searchres.lns[idx].PartNumber,6) + rpad(searchres.lns[idx].Qty.ToString(),3) + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7);
 //							txt = pad(searchres.lns[idx].Description,27) + " " + pad(searchres.lns[idx].PartNumber,8) + " " + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7) + " ";
 							txt = this.layoutpartsearch(searchres.lns[idx].PartNumber,searchres.lns[idx].Description,searchres.lns[idx].Price.ToString("F02"),"") + " ";
 							lb1[2].Items.Add(txt);
@@ -9965,7 +10158,7 @@ namespace epos {
 					}
 					for (idx = 0; idx < searchres.NumLines; idx++) {
 						searchres.lns[idx].Qty = 1;
-						//						txt = pad(searchres.lns[idx].Description,27) + " " + pad(searchres.lns[idx].PartNumber,6) + rpad(searchres.lns[idx].Qty.ToString(),3) + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7);
+//						txt = pad(searchres.lns[idx].Description,27) + " " + pad(searchres.lns[idx].PartNumber,6) + rpad(searchres.lns[idx].Qty.ToString(),3) + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7);
 //						txt = pad(searchres.lns[idx].Description,27) + " " + pad(searchres.lns[idx].PartNumber,8) + " " + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7) + " ";
 						txt = this.layoutpartsearch(searchres.lns[idx].PartNumber,searchres.lns[idx].Description,searchres.lns[idx].Price.ToString("F02"),"") + " ";
 						lb1[2].Items.Add(txt);
@@ -10021,16 +10214,17 @@ namespace epos {
 			}
 			return;
 		}
-	
 		#endregion
 		#region state12 Search results displayed
-		private void processstate_12(stateevents eventtype, string eventname, int eventtag, string eventdata) {
+		private void processstate_12(stateevents eventtype, string eventname, int eventtag, string eventdata)
+		{
 			int erc;
 			string txt;
 			int idx;
-			string imagefile;
+			//string imagefile;
 
-			if (eventtype == stateevents.functionkey) {
+			if (eventtype == stateevents.functionkey)
+			{
 				if (eventdata == "SELECT") {
 					idx = lb1[2].SelectedIndex;
 					if ((idx > -1) && (idx < lb1[2].Items.Count)) {
@@ -10042,7 +10236,7 @@ namespace epos {
 							term = "*";
 						else
 							term = " ";
-						lbtxt = lbtxt.Substring(0,ll-1) + term;
+						lbtxt = lbtxt.Substring(0, ll - 1) + term;
 
 						lb1[2].Items[idx] = lbtxt;
 
@@ -10051,11 +10245,11 @@ namespace epos {
 				}
 
 				if (eventdata == "SEARCHPART") {
-					processstate_12(stateevents.textboxcret,eventname,eventtag,tb1[0].Text);
+					processstate_12(stateevents.textboxcret, eventname, eventtag, tb1[0].Text);
 					return;
 				}
 				if (eventdata == "SEARCHDESC") {
-					changetext("L_HDG6","");	
+					changetext("L_HDG6", "");
 					hdg6waserror = false;
 					eventdata = tb1[0].Text;
 
@@ -10068,22 +10262,24 @@ namespace epos {
 					searchres = new partsearch();
 					searchres.NumLines = 0;
 					searchpopup(true);
-					erc = elucid.searchpart(id,currentpart,searchres);
+					erc = elucid.searchpart(id, currentpart, searchres);
 					searchpopup(false);
 					if (erc == 0) {
 						if (searchres.NumLines > 0) {
 							idx = searchres.NumLines - 1;
-							if (searchres.lns[idx].Description == "More Data") {
+							if (searchres.lns[idx].Description == "More Data")
+							{
 								searchres.lns[idx].Description = st1[34];
 							}
 						}
 						for (idx = 0; idx < searchres.NumLines; idx++) {
 							searchres.lns[idx].Qty = 1;
-//							txt = pad(searchres.lns[idx].Description,25) + " " + pad(searchres.lns[idx].PartNumber,8) + rpad(searchres.lns[idx].Qty.ToString(),3) + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7) + " ";
-							txt = this.layoutpartsearch(searchres.lns[idx].PartNumber,searchres.lns[idx].Description,searchres.lns[idx].Price.ToString("F02"),searchres.lns[idx].Qty.ToString()) + " ";
+							//							txt = pad(searchres.lns[idx].Description,25) + " " + pad(searchres.lns[idx].PartNumber,8) + rpad(searchres.lns[idx].Qty.ToString(),3) + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7) + " ";
+							txt = this.layoutpartsearch(searchres.lns[idx].PartNumber, searchres.lns[idx].Description, searchres.lns[idx].Price.ToString("F02"), searchres.lns[idx].Qty.ToString()) + " ";
 							lb1[2].Items.Add(txt);
 						}
-						if (searchres.NumLines > 0) {
+						if (searchres.NumLines > 0)
+						{
 							idx = 0;
 							currentpart.PartNumber = searchres.lns[idx].PartNumber;
 							currentpart.Description = searchres.lns[idx].Description;
@@ -10092,22 +10288,24 @@ namespace epos {
 							if (lb1[2].SelectionMode != SelectionMode.MultiSimple)
 								lb1[2].SelectedIndex = 0;
 							else
-								lb1[2].SetSelected(0,false);
+								lb1[2].SetSelected(0, false);
 							lb1[2].Refresh();
 
 							newstate(12);	// refresh description etc
 							idx = searchres.NumLines - 1;
-							if (searchres.lns[idx].Description == st1[34]) {
-								changetext("L_HDG6",st1[34]);
+							if (searchres.lns[idx].Description == st1[34])
+							{
+								changetext("L_HDG6", st1[34]);
 								hdg6waserror = true; beep();
 							}
 						}
 					}
-					else {
+					else
+					{
 						if (id.ErrorMessage != "")
-							changetext("L_HDG6",id.ErrorMessage);
+							changetext("L_HDG6", id.ErrorMessage);
 						else
-							changetext("L_HDG6","EPOS ERror 4");
+							changetext("L_HDG6", "EPOS ERror 4");
 						hdg6waserror = true; beep();
 						return;
 					}
@@ -10115,236 +10313,292 @@ namespace epos {
 					currentpart.Description = "";
 					return;
 				}
-				if ((eventdata == "CANCEL") || (eventdata == "ESC")) {
+				if ((eventdata == "CANCEL") || (eventdata == "BACK") || (eventdata == "ESC"))
+				{
 					if (currentorder.NumLines > 0)
 						newstate(3);
 					else
 						newstate(emptyorder);
 					return;
 				}
-				if (eventdata == "ORDER") {
-
-					int curridx = lb1[2].SelectedIndex;
-					int selcount = 0;
-					for (int selidx = 0; selidx < lb1[2].Items.Count; selidx++) {
-						int lbidx = selidx;;
-						
-						if (!searchres.lns[lbidx].Select) {
-							continue;
-						}
-						selcount++;
-
+				if (eventdata == "ORDER")
+				{
+					if (currlineisnegative)
+					{
+						if (currentpart.Price == 0.00M)
+						{
+							if (askforprice)
+							{
+								newstate(63);
+								changetext("L_HDG7", currentpart.PartNumber);
+								changetext("L_HDG8", currentpart.Description);
+								m_item_val = "0.00";
+								return;
+							}
+						}							
+						processstate_12(stateevents.functionkey, eventname, eventtag, "RETURN");
 					}
+					else
+					{
+						int curridx = lb1[2].SelectedIndex;
+						int selcount = 0;
+						for (int selidx = 0; selidx < lb1[2].Items.Count; selidx++)
+						{
+							int lbidx = selidx; ;
 
-					if ((selcount == 0) && (curridx > -1) && (curridx < lb1[2].Items.Count)) {
-						searchres.lns[curridx].Select = true;
-						selcount++;
-					}
+							if (!searchres.lns[lbidx].Select)
+							{
+								continue;
+							}
+							selcount++;
 
-					string valmsg = "";
-					for (int selidx = 0; selidx < lb1[2].Items.Count; selidx++) {
-						int lbidx = selidx;
-						
-						if (!searchres.lns[lbidx].Select) {
-							continue;
 						}
-						currentpart = new partdata(searchres.lns[lbidx]);
-						currentpart.Qty = 1;
-						erc = elucid.validatepart(id,currentpart,currentcust,false);
-						if (erc != 0) {
-							searchres.lns[lbidx].Select = false;
-							if ((valmsg == "") || (valmsg == "EPOS Error 6")) {
-								if (id.ErrorMessage != "")
-									valmsg = id.ErrorMessage;
-								else
-									valmsg = "EPOS Error 6";
+
+						if ((selcount == 0) && (curridx > -1) && (curridx < lb1[2].Items.Count))
+						{
+							searchres.lns[curridx].Select = true;
+							selcount++;
+						}
+
+						string valmsg = "";
+						for (int selidx = 0; selidx < lb1[2].Items.Count; selidx++)
+						{
+							int lbidx = selidx;
+
+							if (!searchres.lns[lbidx].Select)
+							{
+								continue;
+							}
+							currentpart = new partdata(searchres.lns[lbidx]);
+							currentpart.Qty = 1;
+							erc = elucid.validatepart(id, currentpart, currentcust, false);
+							if (erc != 0)
+							{
+								searchres.lns[lbidx].Select = false;
+								if ((valmsg == "") || (valmsg == "EPOS Error 6"))
+								{
+									if (id.ErrorMessage != "")
+										valmsg = id.ErrorMessage;
+									else
+										valmsg = "EPOS Error 6";
+								}
 							}
 						}
-					}
 
-					if (valmsg != "") {
-						changetext("L_HDG6",valmsg);
-						hdg6waserror = true; beep();
-						return;
-					}
-
-
-					for (int selidx = 0; selidx < lb1[2].Items.Count; selidx++) {
-						int lbidx = selidx;
-						
-						if (!searchres.lns[lbidx].Select) {
-							continue;
+						if (valmsg != "")
+						{
+							changetext("L_HDG6", valmsg);
+							hdg6waserror = true; beep();
+							return;
 						}
 
 
-						currentpart = new partdata(searchres.lns[lbidx]);
-						//						currentpart.PartNumber = searchres.lns[lbidx].PartNumber;
-						//						currentpart.Description = searchres.lns[lbidx].Description;
-						//						currentpart.Price = searchres.lns[lbidx].Price;
-						//						currentpart.PartNumber = lb1[2].Items[lbidx].ToString();
+						for (int selidx = 0; selidx < lb1[2].Items.Count; selidx++)
+						{
+							int lbidx = selidx;
 
-						if (currentpart.PartNumber != "") {
-							bool cons = checkconsolidate(id,currentpart,currentcust,currentorder,false,false, 1.00M);
+							if (!searchres.lns[lbidx].Select)
+							{
+								continue;
+							}
 
-							if (!cons) {
 
-								currentpart.Qty = 1;
-								erc = elucid.validatepart(id,currentpart,currentcust,false);
-								if (erc == 0) {
-									if (currentpart.Price == 0.00M) {
-										if (askforprice) {
-											newstate(63);
-											changetext("L_HDG7",currentpart.PartNumber);
-											changetext("L_HDG8",currentpart.Description);
-											m_item_val = "0.00";
+							currentpart = new partdata(searchres.lns[lbidx]);
+							//						currentpart.PartNumber = searchres.lns[lbidx].PartNumber;
+							//						currentpart.Description = searchres.lns[lbidx].Description;
+							//						currentpart.Price = searchres.lns[lbidx].Price;
+							//						currentpart.PartNumber = lb1[2].Items[lbidx].ToString();
+
+							if (currentpart.PartNumber != "")
+							{
+								bool cons = checkconsolidate(id, currentpart, currentcust, currentorder, false, false, 1.00M);
+
+								if (!cons)
+								{
+
+									currentpart.Qty = 1;
+									erc = elucid.validatepart(id, currentpart, currentcust, false);
+									if (erc == 0)
+									{
+										if (currentpart.Price == 0.00M)
+										{
+											if (askforprice)
+											{
+												newstate(63);
+												changetext("L_HDG7", currentpart.PartNumber);
+												changetext("L_HDG8", currentpart.Description);
+												m_item_val = "0.00";
+												return;
+											}
+										}
+
+										idx = currentorder.NumLines;
+										currentorder.lns[idx].Part = currentpart.PartNumber;
+										currentorder.lns[idx].Descr = currentpart.Description;
+										currentorder.lns[idx].ProdGroup = currentpart.ProdGroup;
+										currentorder.lns[idx].DiscNotAllowed = currentpart.DiscNotAllowed;
+										currentorder.lns[idx].MaxDiscount = currentpart.MaxDiscAllowed;
+										currentorder.lns[idx].VatExempt = ((currentpart.Medical) && (currentcust.Medical));
+
+										if (currentorder.lns[idx].VatExempt)
+										{
+											currentpart.Price = currentpart.NetPrice;
+											currentpart.TaxValue = 0.0M;
+										}
+
+										if ((selcount == 1) && ((!currentorder.lns[idx].VatExempt) && (currentpart.Medical) && (VatDialogue)))
+										{
+											changetext("L_HDG7", currentpart.PartNumber);
+											changetext("L_HDG8", currentpart.Description);
+											newstate(59);
 											return;
 										}
-									}
 
-									idx = currentorder.NumLines;
-									currentorder.lns[idx].Part = currentpart.PartNumber;
-									currentorder.lns[idx].Descr = currentpart.Description;
-									currentorder.lns[idx].ProdGroup = currentpart.ProdGroup;
-									currentorder.lns[idx].DiscNotAllowed = currentpart.DiscNotAllowed;
-									currentorder.lns[idx].MaxDiscount = currentpart.MaxDiscAllowed;
-									currentorder.lns[idx].VatExempt = ((currentpart.Medical) && (currentcust.Medical));
-
-									if (currentorder.lns[idx].VatExempt) {
-										currentpart.Price = currentpart.NetPrice;
-										currentpart.TaxValue = 0.0M;
-									}
-
-									if ((selcount == 1) && ((!currentorder.lns[idx].VatExempt) && (currentpart.Medical) && (VatDialogue))) {
-										changetext("L_HDG7",currentpart.PartNumber);
-										changetext("L_HDG8",currentpart.Description);
-										newstate(59);
-										return;
-									}
-
-									if (currlineisnegative) {
-										currentorder.LineVal = -currentpart.Price;
-										currentorder.lns[idx].Qty = -1;
-										currentorder.lns[idx].LineValue = -currentpart.Price;
-										currentorder.lns[idx].LineTaxValue = -currentpart.TaxValue;
-										currentorder.lns[idx].LineNetValue = -currentpart.NetPrice;
-										currlineisnegative = false;
-										currentpart.Qty = -1;
-										txt = pad(currentpart.Description,27) + " " + pad(currentpart.PartNumber,6) + rpad(currentpart.Qty.ToString(),3) + " " + rpad((-currentpart.Price).ToString("F02"),7) + " R";
-//										txt = this.layoutpartsearch(currentpart.PartNumber,currentpart.Description,(-currentpart.Price).ToString("F02"),currentpart.Qty.ToString()) + " R";
-									}
-									else {
-										currentorder.LineVal = currentpart.Price;
-										currentorder.lns[idx].Qty = 1;
-										currentorder.lns[idx].LineValue = currentpart.Price;
-										currentorder.lns[idx].LineTaxValue = currentpart.TaxValue;
-										currentorder.lns[idx].LineNetValue = currentpart.NetPrice;
-										currentpart.Qty = 1;
-										txt = pad(currentpart.Description,27) + " " + pad(currentpart.PartNumber,6) + rpad(currentpart.Qty.ToString(),3) + " " + rpad(currentpart.Price.ToString("F02"),7);
-//										txt = this.layoutpartsearch(currentpart.PartNumber,currentpart.Description,currentpart.Price.ToString("F02"),currentpart.Qty.ToString());
-									}
-									currentorder.TotVal = currentorder.TotVal + currentorder.LineVal;
-									currentorder.TotNetVal = currentorder.TotNetVal + currentpart.NetPrice;
-									currentorder.TotTaxVal = currentorder.TotTaxVal + currentpart.TaxValue;
-									lb1[0].Items.Add(txt);
-									lb1[0].Items.Add("");
-									currentorder.lns[idx].CurrentUnitPrice = currentpart.Price;
-									currentorder.lns[idx].BaseUnitPrice = currentpart.Price;
-									currentorder.lns[idx].OrigPrice = currentpart.Price;
-									currentorder.lns[idx].BaseTaxPrice = currentpart.TaxValue;
-									currentorder.lns[idx].BaseNetPrice = currentpart.NetPrice;
-									currentorder.lns[idx].Discount = 0.0M;
-									currentorder.NumLines = currentorder.NumLines + 1;
-									recalcordertotal(id,currentorder);
-
-									decimal discount = 0.0M;
-
-
-									discount = elucid.calcmultibuydiscount(id,currentcust,currentorder,currentpart.ProdGroup);
-									if (discount > 0.0M) {
-										idx = currentorder.NumLines;
-										currentorder.lns[idx].Part = discount_item_code;
-										currentorder.lns[idx].Descr = discount_description;
-										currentorder.lns[idx].ProdGroup = currentpart.ProdGroup;
-										currentorder.lns[idx].DiscNotAllowed = false;
-										currentorder.lns[idx].MaxDiscount = 0.00M;
-										currentorder.LineVal = -discount;
-										currentorder.lns[idx].Qty = 1;
-										currentorder.lns[idx].LineValue = -discount;
-										currentorder.lns[idx].LineTaxValue = 0.0M;
-										currentorder.lns[idx].LineNetValue = -discount;
-										currentpart.Qty = 1;
-										txt = pad(discount_description,27) + " " + pad("",6) + rpad("",3) + " " + rpad((-discount).ToString("F02"),7) + "  ";
+										if (currlineisnegative)
+										{
+											currentorder.LineVal = -currentpart.Price;
+											currentorder.lns[idx].Qty = -1;
+											currentorder.lns[idx].LineValue = -currentpart.Price;
+											currentorder.lns[idx].LineTaxValue = -currentpart.TaxValue;
+											currentorder.lns[idx].LineNetValue = -currentpart.NetPrice;
+											currlineisnegative = false;
+											currentpart.Qty = -1;
+											txt = pad(currentpart.Description, 27) + " " + pad(currentpart.PartNumber, 6) + rpad(currentpart.Qty.ToString(), 3) + " " + rpad((-currentpart.Price).ToString("F02"), 7) + " R";
+											//										txt = this.layoutpartsearch(currentpart.PartNumber,currentpart.Description,(-currentpart.Price).ToString("F02"),currentpart.Qty.ToString()) + " R";
+										}
+										else
+										{
+											currentorder.LineVal = currentpart.Price;
+											currentorder.lns[idx].Qty = 1;
+											currentorder.lns[idx].LineValue = currentpart.Price;
+											currentorder.lns[idx].LineTaxValue = currentpart.TaxValue;
+											currentorder.lns[idx].LineNetValue = currentpart.NetPrice;
+											currentpart.Qty = 1;
+											txt = pad(currentpart.Description, 27) + " " + pad(currentpart.PartNumber, 6) + rpad(currentpart.Qty.ToString(), 3) + " " + rpad(currentpart.Price.ToString("F02"), 7);
+											//										txt = this.layoutpartsearch(currentpart.PartNumber,currentpart.Description,currentpart.Price.ToString("F02"),currentpart.Qty.ToString());
+										}
 										currentorder.TotVal = currentorder.TotVal + currentorder.LineVal;
-										currentorder.TotNetVal = currentorder.TotNetVal + currentorder.LineVal;
+										currentorder.TotNetVal = currentorder.TotNetVal + currentpart.NetPrice;
+										currentorder.TotTaxVal = currentorder.TotTaxVal + currentpart.TaxValue;
 										lb1[0].Items.Add(txt);
 										lb1[0].Items.Add("");
-										currentorder.lns[idx].CurrentUnitPrice = -discount;
-										currentorder.lns[idx].BaseUnitPrice = -discount;
-										currentorder.lns[idx].OrigPrice = -discount;
-										currentorder.lns[idx].BaseTaxPrice = 0.0M;
-										currentorder.lns[idx].BaseNetPrice = -discount;
+										currentorder.lns[idx].CurrentUnitPrice = currentpart.Price;
+										currentorder.lns[idx].BaseUnitPrice = currentpart.Price;
+										currentorder.lns[idx].OrigPrice = currentpart.Price;
+										currentorder.lns[idx].BaseTaxPrice = currentpart.TaxValue;
+										currentorder.lns[idx].BaseNetPrice = currentpart.NetPrice;
 										currentorder.lns[idx].Discount = 0.0M;
 										currentorder.NumLines = currentorder.NumLines + 1;
-										recalcordertotal(id,currentorder);
+										recalcordertotal(id, currentorder);
+
+										decimal discount = 0.0M;
+
+
+										discount = elucid.calcmultibuydiscount(id, currentcust, currentorder, currentpart.ProdGroup);
+										if (discount > 0.0M)
+										{
+											idx = currentorder.NumLines;
+											currentorder.lns[idx].Part = discount_item_code;
+											currentorder.lns[idx].Descr = discount_description;
+											currentorder.lns[idx].ProdGroup = currentpart.ProdGroup;
+											currentorder.lns[idx].DiscNotAllowed = false;
+											currentorder.lns[idx].MaxDiscount = 0.00M;
+											currentorder.LineVal = -discount;
+											currentorder.lns[idx].Qty = 1;
+											currentorder.lns[idx].LineValue = -discount;
+											currentorder.lns[idx].LineTaxValue = 0.0M;
+											currentorder.lns[idx].LineNetValue = -discount;
+											currentpart.Qty = 1;
+											txt = pad(discount_description, 27) + " " + pad("", 6) + rpad("", 3) + " " + rpad((-discount).ToString("F02"), 7) + "  ";
+											currentorder.TotVal = currentorder.TotVal + currentorder.LineVal;
+											currentorder.TotNetVal = currentorder.TotNetVal + currentorder.LineVal;
+											lb1[0].Items.Add(txt);
+											lb1[0].Items.Add("");
+											currentorder.lns[idx].CurrentUnitPrice = -discount;
+											currentorder.lns[idx].BaseUnitPrice = -discount;
+											currentorder.lns[idx].OrigPrice = -discount;
+											currentorder.lns[idx].BaseTaxPrice = 0.0M;
+											currentorder.lns[idx].BaseNetPrice = -discount;
+											currentorder.lns[idx].Discount = 0.0M;
+											currentorder.NumLines = currentorder.NumLines + 1;
+											recalcordertotal(id, currentorder);
+										}
+										changetext("L_HDG7", currentpart.PartNumber);
+										changetext("L_HDG8", currentpart.Description);
+										m_item_val = currentorder.LineVal.ToString("F02");
+										m_tot_val = currentorder.TotVal.ToString("F02");
+										lb1[0].SelectedIndex = idx * 2;
+
 									}
-									changetext("L_HDG7",currentpart.PartNumber);
-									changetext("L_HDG8",currentpart.Description);
-									m_item_val = currentorder.LineVal.ToString("F02");
-									m_tot_val = currentorder.TotVal.ToString("F02");
-									lb1[0].SelectedIndex = idx * 2;
-
-								}
-								else {
-									if (id.ErrorMessage != "")
-										changetext("L_HDG6",id.ErrorMessage);
 									else
-										changetext("L_HDG6","EPOS Error 6");
-									hdg6waserror = true; beep();
-									return;
+									{
+										if (id.ErrorMessage != "")
+											changetext("L_HDG6", id.ErrorMessage);
+										else
+											changetext("L_HDG6", "EPOS Error 6");
+										hdg6waserror = true; beep();
+										return;
+									}
 								}
 							}
 						}
+						if (currentorder.NumLines > 0)
+						{
+							lb1[0].SelectedIndex = -1;
+							newstate(3);
+							return;
+						}
+						else
+						{
+							newstate(emptyorder);
+							return;
+						}
 					}
-					if (currentorder.NumLines > 0) {
-						lb1[0].SelectedIndex = -1;
-						newstate(3);
-						return;
-					} else {
-						newstate(emptyorder);
-						return;
-					}
-				}
-				if (eventdata == "ZZORDER") {
-					if (currentpart.PartNumber != "") {
-						if ((currentpart.Script != "") || (currentpart.Notes != "")) {
-							if ((currentpart.FromDate <= DateTime.Now.Date) && (currentpart.ToDate >= DateTime.Now.Date)) {
-								shownotes(currentpart.Script + "\r\n" + currentpart.Notes,st1[58]);
+
+				}// ORDER
+
+				if (eventdata == "RETURN")  //was: if (eventdata == "ZZORDER")
+				{
+					if (currentpart.PartNumber != "")
+					{
+						if ((currentpart.Script != "") || (currentpart.Notes != ""))
+						{
+							if ((currentpart.FromDate <= DateTime.Now.Date) && (currentpart.ToDate >= DateTime.Now.Date))
+							{
+								shownotes(currentpart.Script + "\r\n" + currentpart.Notes, st1[58]);
 							}
 						}
-						if (!currlineisnegative) {
+						if (!currlineisnegative)
+						{
 
-							bool cons = checkconsolidate(id,currentpart,currentcust,currentorder,false,false,1.00M);
+							bool cons = checkconsolidate(id, currentpart, currentcust, currentorder, false, false, 1.00M);
 
-							if (cons) {
-								if (!selectnewsaleitem) {
+							if (cons)
+							{
+								if (!selectnewsaleitem)
+								{
 									lb1[0].SelectedIndex = -1;
 									newstate(3);
-								} else
+								}
+								else
 									newstate(4);
 								return;
 							}
 						}
 
 						currentpart.Qty = 1;
-						erc = elucid.validatepart(id,currentpart,currentcust,false);
-						if (erc == 0) {
-							if (currlineisnegative) {
+						erc = elucid.validatepart(id, currentpart, currentcust, false);
+						if (erc == 0)
+						{
+							if (currlineisnegative)
+							{
 								idx = currentorder.NumLines;
-								if (!checkrefund(id,currentorder,currentpart.Price)) {
+								if (!checkrefund(id, currentorder, currentpart.Price))
+								{
 									m_calling_state = 4;
 									openingtill = false;
 									newstate(27);
-									changetext("L_HDG7","Refund Limit Exceeded");
+									changetext("L_HDG7", "Refund Limit Exceeded");
 									return;
 								}
 							}
@@ -10355,13 +10609,15 @@ namespace epos {
 							currentorder.lns[idx].DiscNotAllowed = currentpart.DiscNotAllowed;
 							currentorder.lns[idx].MaxDiscount = currentpart.MaxDiscAllowed;
 							currentorder.lns[idx].VatExempt = ((currentpart.Medical) && (currentcust.Medical));
-							if ((!currentorder.lns[idx].VatExempt) && (currentpart.Medical) && (VatDialogue)) {
-								changetext("L_HDG7",currentpart.PartNumber);
-								changetext("L_HDG8",currentpart.Description);
+							if ((!currentorder.lns[idx].VatExempt) && (currentpart.Medical) && (VatDialogue))
+							{
+								changetext("L_HDG7", currentpart.PartNumber);
+								changetext("L_HDG8", currentpart.Description);
 								newstate(59);
 								return;
 							}
-							if (currlineisnegative) {
+							if (currlineisnegative)
+							{
 								currentorder.LineVal = -currentpart.Price;
 								currentorder.lns[idx].Qty = -1;
 								currentorder.lns[idx].LineValue = -currentpart.Price;
@@ -10369,16 +10625,17 @@ namespace epos {
 								currentorder.lns[idx].LineNetValue = -currentpart.NetPrice;
 								currlineisnegative = false;
 								currentpart.Qty = -1;
-								txt = pad(currentpart.Description,27) + " " + pad(currentpart.PartNumber,6) + rpad(currentpart.Qty.ToString(),3) + " " + rpad((-currentpart.Price).ToString("F02"),7) + " R";
+								txt = pad(currentpart.Description, 27) + " " + pad(currentpart.PartNumber, 6) + rpad(currentpart.Qty.ToString(), 3) + " " + rpad((-currentpart.Price).ToString("F02"), 7) + " R";
 							}
-							else {
+							else
+							{
 								currentorder.LineVal = currentpart.Price;
 								currentorder.lns[idx].Qty = 1;
 								currentorder.lns[idx].LineValue = currentpart.Price;
 								currentorder.lns[idx].LineTaxValue = currentpart.TaxValue;
 								currentorder.lns[idx].LineNetValue = currentpart.NetPrice;
 								currentpart.Qty = 1;
-								txt = pad(currentpart.Description,27) + " " + pad(currentpart.PartNumber,6) + rpad(currentpart.Qty.ToString(),3) + " " + rpad(currentpart.Price.ToString("F02"),7);
+								txt = pad(currentpart.Description, 27) + " " + pad(currentpart.PartNumber, 6) + rpad(currentpart.Qty.ToString(), 3) + " " + rpad(currentpart.Price.ToString("F02"), 7);
 							}
 							currentorder.TotVal = currentorder.TotVal + currentorder.LineVal;
 							currentorder.TotNetVal = currentorder.TotNetVal + currentpart.NetPrice;
@@ -10392,12 +10649,13 @@ namespace epos {
 							currentorder.lns[idx].BaseNetPrice = currentpart.NetPrice;
 							currentorder.lns[idx].Discount = 0.0M;
 							currentorder.NumLines = currentorder.NumLines + 1;
-							recalcordertotal(id,currentorder);
+							recalcordertotal(id, currentorder);
 
 							decimal discount = 0.0M;
 
-							discount = elucid.calcmultibuydiscount(id,currentcust,currentorder,currentpart.ProdGroup);
-							if (discount > 0.0M) {
+							discount = elucid.calcmultibuydiscount(id, currentcust, currentorder, currentpart.ProdGroup);
+							if (discount > 0.0M)
+							{
 								idx = currentorder.NumLines;
 								currentorder.lns[idx].Part = discount_item_code;
 								currentorder.lns[idx].Descr = discount_description;
@@ -10410,7 +10668,7 @@ namespace epos {
 								currentorder.lns[idx].LineTaxValue = 0.0M;
 								currentorder.lns[idx].LineNetValue = -discount;
 								currentpart.Qty = 1;
-								txt = pad(discount_description,27) + " " + pad("",6) + rpad("",3) + " " + rpad((-discount).ToString("F02"),7) + "  ";
+								txt = pad(discount_description, 27) + " " + pad("", 6) + rpad("", 3) + " " + rpad((-discount).ToString("F02"), 7) + "  ";
 								currentorder.TotVal = currentorder.TotVal + currentorder.LineVal;
 								currentorder.TotNetVal = currentorder.TotNetVal + currentorder.LineVal;
 								lb1[0].Items.Add(txt);
@@ -10422,136 +10680,368 @@ namespace epos {
 								currentorder.lns[idx].BaseNetPrice = -discount;
 								currentorder.lns[idx].Discount = 0.0M;
 								currentorder.NumLines = currentorder.NumLines + 1;
-								recalcordertotal(id,currentorder);
+								recalcordertotal(id, currentorder);
 							}
-							changetext("L_HDG7",currentpart.PartNumber);
-							changetext("L_HDG8",currentpart.Description);
+							changetext("L_HDG7", currentpart.PartNumber);
+							changetext("L_HDG8", currentpart.Description);
 							m_item_val = currentorder.LineVal.ToString("F02");
 							m_tot_val = currentorder.TotVal.ToString("F02");
 							lb1[0].SelectedIndex = idx * 2;
 
-							if (!selectnewsaleitem) {
+							if (!selectnewsaleitem)
+							{
 								lb1[0].SelectedIndex = -1;
 								newstate(3);
-							} else
-								newstate(4);
+							}
+							else
+							{
+								//??newstate(4);
+								newstate(49);
+							}
 							return;
 						}
-						else {
+						else
+						{
 							if (id.ErrorMessage != "")
-								changetext("L_HDG6",id.ErrorMessage);
+								changetext("L_HDG6", id.ErrorMessage);
 							else
-								changetext("L_HDG6","EPOS Error 6");
+								changetext("L_HDG6", "EPOS Error 6");
 							hdg6waserror = true; beep();
 							return;
 						}
 					}
 				}
+				string locImageFile = "";//
 				if (eventdata == "IMAGE") // image
-					if (currentpart.PartNumber != "") {
-						erc = elucid.validatepart(id,currentpart,currentcust,false);
-						// MessageBox.Show(currentpart.FullDescription);
-						newstate(32);
-						imagefile = currentpart.PartNumber + ".jpg";
-						
-						loadimage("IMAGE1",imagefile);
-						this.loadfulldesc("L_FULLDESC",currentpart.FullDescription);
+				{
+					if (currentpart.PartNumber != "")
+					{
+						try
+						{
+							erc = elucid.validatepart(id, currentpart, currentcust, false);
+						}												
+						catch
+						{
+							ydebug("error validate part ");
+						}
 
+						try
+						{
+							locImageFile = currentpart.PartNumber + ".jpg";
+							ydebug("imagefile:" + locImageFile);
+						}
+						catch
+						{
+							ydebug("error imagefile ");
+						}
 
+						bool imageFound = false;
+
+						try
+						{
+							imageFound = loadimage("IMAGE1", locImageFile);
+						}
+						catch
+						{
+							ydebug("error imagefound: " + locImageFile);
+						}
+
+						string tmpDebugStr = "none";
+
+						try
+						{
+							if ((imageFound == false) && (currentpart.FullDescription != ""))
+							{
+								tmpDebugStr = "74";
+								ydebug(tmpDebugStr);
+								// sjl, 16/09/2008: new state(74) to show only description.
+								newstate(74);
+								this.loadfulldesc("L_FULLDESC2", currentpart.FullDescription);
+							}
+							else
+							{
+								tmpDebugStr = "32";								
+								newstate(32);
+								this.loadfulldesc("L_FULLDESC", currentpart.FullDescription);
+								loadimage("IMAGE1", locImageFile);
+								visiblecontrol("IMAGE1", true);
+								visiblecontrol("L_FULLDESC", true);
+							}
+						}					
+						catch
+						{
+							ydebug("error loading state: " + tmpDebugStr);
+						}
 					}
-				if (eventdata == "SEARCHSTOCK") {	// Stock Search
-					if (currentpart.PartNumber != "") {
+				}
+				if (eventdata == "SEARCHSTOCK")
+				{	// Stock Search
+					if (currentpart.PartNumber != "")
+					{
 						lb1[3].Items.Clear();
 						stocksearchres.NumLines = 0;
 						searchpopup(true);
-						erc = elucid.searchstock(id,currentpart,stocksearchres);
+						erc = elucid.searchstock(id, currentpart, stocksearchres);
 						searchpopup(false);
-						if (erc == 0) {
-							if (stocksearchres.NumLines == 0) {
+						if (erc == 0)
+						{
+							if (stocksearchres.NumLines == 0)
+							{
 								lb1[3].Items.Add(st1[26]);
 							}
-							for (idx = 0; idx < stocksearchres.NumLines; idx++) {
-								txt = pad(stocksearchres.lns[idx].SiteDescription,33) + " " +  rpad(stocksearchres.lns[idx].Qty.ToString(),3);
+							for (idx = 0; idx < stocksearchres.NumLines; idx++)
+							{
+								txt = pad(stocksearchres.lns[idx].SiteDescription, 37) + " " + rpad(stocksearchres.lns[idx].Qty.ToString(), 6);
 								lb1[3].Items.Add(txt);
 							}
 							m_calling_state = 12;
 							newstate(19);
 							return;
 						}
-						else {
+						else
+						{
 							if (id.ErrorMessage != "")
-								changetext("L_HDG6",id.ErrorMessage);
+								changetext("L_HDG6", id.ErrorMessage);
 							else
-								changetext("L_HDG6","EPOS Error 7");
+								changetext("L_HDG6", "EPOS Error 7");
 							hdg6waserror = true; beep();
 							return;
 						}
 					}
 				}
-                //**
-                if (eventdata == "RETURN")
-                {
-                    int savedSelected = lb1[2].SelectedIndex;
-                    idx = currentorder.NumLines;
+				//*
+				if (eventdata == "xxRETURN")
+				{
+					currentpart.Qty = 1;
+					erc = elucid.validatepart(id, currentpart, currentcust, false);
+					if (erc == 0)
+					{
+						paintdisplay((currentpart.Description + "					").Substring(0, 20) + "\r\n" + rpad(currentpart.Price.ToString("F02"), 20));
 
-                    if ((eventtype == stateevents.functionkey) && (savedSelected != -1) && (lb1[2].SelectedIndices.Count == 1))
-                    {
-                        lb1[0].Items.Clear();
-                        txt = this.layoutpartsearch(searchres.lns[savedSelected].PartNumber, searchres.lns[savedSelected].Description, searchres.lns[savedSelected].Price.ToString("F02"), searchres.lns[savedSelected].Qty.ToString()) + " ";
-                        lb1[0].Items.Add(txt);
-                        lb1[0].SelectedIndex = 0;
-                        
-                        changetext("L_HDG7", currentpart.PartNumber);
-                        changetext("L_HDG8", currentpart.Description);
-                        //m_item_val = currentorder.LineVal.ToString("F02");
-                        //m_tot_val = currentorder.TotVal.ToString("F02");
-                        //lb1[0].SelectedIndex = idx * 2;
+						if ((currentpart.Script != "") || (currentpart.Notes != ""))
+						{
+							if ((currentpart.FromDate <= DateTime.Now.Date) && (currentpart.ToDate >= DateTime.Now.Date))
+							{
+								shownotes(currentpart.Script + "\r\n" + currentpart.Notes, st1[58]);
+							}
+						}
 
-                        newstate(49);
+						currentorder = new orderdata(currentcust);
 
-                        /*
-                        currentpart.PartNumber = searchres.lns[savedSelected].PartNumber;
-                        currentpart.Description = searchres.lns[savedSelected].Description;
-                        currentpart.Price = searchres.lns[savedSelected].Price;
+						if (currentpart.Price == 0.00M)
+						{
+							if (askforprice)
+							{
+								newstate(63);
+								changetext("L_HDG7", currentpart.PartNumber);
+								changetext("L_HDG8", currentpart.Description);
+								m_item_val = "0.00";
+								return;
+							}
+						}
 
-                        changetext("L_HDG7", searchres.lns[savedSelected].PartNumber);
-                        changetext("L_HDG8", searchres.lns[savedSelected].Description);
+						if (currlineisnegative)
+						{
+							idx = currentorder.NumLines;
+							if (!checkrefund(id, currentorder, currentpart.Price))
+							{
+								m_calling_state = 2;
+								openingtill = false;
+								newstate(27);
+								changetext("L_HDG7", "Refund Limit Exceeded");
+								return;
+							}
+						}
 
-                        //lb1[0].Items.Clear();
-                        lb1[2].Items.Clear();
+						idx = currentorder.NumLines;
+						currentorder.lns[idx].Part = currentpart.PartNumber;
+						currentorder.lns[idx].Descr = currentpart.Description;
+						currentorder.lns[idx].ProdGroup = currentpart.ProdGroup;
+						currentorder.lns[idx].DiscNotAllowed = currentpart.DiscNotAllowed;
+						currentorder.lns[idx].MaxDiscount = currentpart.MaxDiscAllowed;
+						currentorder.lns[idx].VatExempt = ((currentpart.Medical) && (currentcust.Medical));
+						if (currentorder.lns[idx].VatExempt)
+						{
+							currentpart.Price = currentpart.NetPrice;
+							currentpart.TaxValue = 0.0M;
+						}
 
-                        txt = this.layoutpartsearch(searchres.lns[savedSelected].PartNumber, searchres.lns[savedSelected].Description, searchres.lns[savedSelected].Price.ToString("F02"), searchres.lns[savedSelected].Qty.ToString()) + " ";
-                        //lb1[0].Items.Add(txt);
+						if (currentpart.DiscRequired != 0.00M)
+						{
+							this.CalculateLineDiscount(currentcust, currentpart, currentorder.lns[idx]);
+						}
 
-                        //lb1[0].SelectedIndex = 0;
-                        newstate(49);
-                        */
-                    }
-                    else
-                    {
-                        newstate(12);
-                    }                                                                  
-                }
+						if ((!currentorder.lns[idx].VatExempt) && (currentpart.Medical) && (VatDialogue))
+						{
+							changetext("L_HDG7", currentpart.PartNumber);
+							changetext("L_HDG8", currentpart.Description);
+							newstate(59);
+							return;
+						}
 
-                if ((eventdata == "UP") && (lb1[2].SelectionMode != SelectionMode.MultiSimple))
-                { // arrow keys
-					idx = lb1[2].SelectedIndex;
-					if (idx > 0)
-						lb1[2].SelectedIndex = idx - 1;
-					//				    lb1[2].Refresh();
+						if (currlineisnegative)
+						{
+							currentorder.LineVal = -currentpart.Price;
+							currentorder.lns[idx].Qty = -1;
+							currentorder.lns[idx].LineValue = -currentpart.Price;
+							currentorder.lns[idx].LineTaxValue = -currentpart.TaxValue;
+							currentorder.lns[idx].LineNetValue = -currentpart.NetPrice;
+							currentpart.Qty = -1;
+							txt = pad(currentpart.Description, 27) + " " + pad(currentpart.PartNumber, 6) + rpad(currentpart.Qty.ToString(), 3) + " " + rpad((-currentpart.Price).ToString("F02"), 7) + " R";
+						}
+						else
+						{
+							currentorder.LineVal = currentpart.Price;
+							currentorder.lns[idx].Qty = 1;
+							currentorder.lns[idx].LineValue = currentpart.Price;
+							currentorder.lns[idx].LineTaxValue = currentpart.TaxValue;
+							currentorder.lns[idx].LineNetValue = currentpart.NetPrice;
+							currentpart.Qty = 1;
+							txt = pad(currentpart.Description, 27) + " " + pad(currentpart.PartNumber, 6) + rpad(currentpart.Qty.ToString(), 3) + " " + rpad(currentpart.Price.ToString("F02"), 7);
+						}
+						currentorder.TotVal = currentorder.TotVal + currentorder.LineVal - currentorder.lns[idx].Discount;
+						currentorder.TotNetVal = currentorder.TotNetVal + currentpart.NetPrice;
+						currentorder.TotTaxVal = currentorder.TotTaxVal + currentpart.TaxValue;
+						lb1[0].Items.Add(txt);
+						if (currentorder.lns[idx].Discount != 0.00M)
+						{
+							if (currentorder.lns[idx].DiscPercent == 0.0M)
+							{
+								// absolute discount
+								txt = pad("Discount", 37) + " " + rpad((-currentorder.lns[idx].Discount).ToString("F02"), 7);
+							}
+							else
+							{
+								// percentage discount
+								txt = pad(currentorder.lns[idx].DiscPercent.ToString() + "% Discount", 37) + " " + rpad((-currentorder.lns[idx].Discount).ToString("F02"), 7);
+							}
+							lb1[0].Items.Add("txt");
+						}
+						else
+						{
+							lb1[0].Items.Add("");
+						}
+						currentorder.lns[idx].CurrentUnitPrice = currentpart.Price;
+						currentorder.lns[idx].BaseUnitPrice = currentpart.Price;
+						currentorder.lns[idx].OrigPrice = currentpart.Price;
+						currentorder.lns[idx].BaseTaxPrice = currentpart.TaxValue;
+						currentorder.lns[idx].BaseNetPrice = currentpart.NetPrice;
+						currentorder.lns[idx].Discount = 0.0M;
+						currentorder.NumLines = currentorder.NumLines + 1;
+
+						if (currentpart.OfferData.Count > 0)
+						{
+
+							if (st1[49] != "")
+							{
+								MessageBox.Show(st1[49]);
+							}
+
+							int iMasterLine = currentorder.NumLines - 1;
+							foreach (DictionaryEntry de in currentpart.OfferData)
+							{
+								partofferdata pod = (partofferdata)de.Value;
+								int iLine = (int)de.Key;
+								partdata offerpart = new partdata();
+								offerpart.PartNumber = pod.OfferPart;
+								offerpart.Qty = (int)decimal.Floor(pod.OfferQty);
+								erc = elucid.validatepart(id, offerpart, currentcust, false);
+								if (erc == 0)
+								{
+									idx = currentorder.NumLines;
+									offerpart.Price = 0.00M;
+									offerpart.TaxValue = 0.00M;
+									offerpart.NetPrice = 0.00M;
+
+									currentorder.lns[idx].Part = offerpart.PartNumber;
+									currentorder.lns[idx].Descr = offerpart.Description;
+									currentorder.lns[idx].ProdGroup = offerpart.ProdGroup;
+									currentorder.lns[idx].DiscNotAllowed = offerpart.DiscNotAllowed;
+									currentorder.lns[idx].MaxDiscount = offerpart.MaxDiscAllowed;
+									currentorder.lns[idx].VatExempt = ((offerpart.Medical) && (currentcust.Medical));
+
+									currentorder.LineVal = 0.00M;
+									currentorder.lns[idx].LineValue = 0.00M;
+									currentorder.lns[idx].LineTaxValue = 0.00M;
+									currentorder.lns[idx].LineNetValue = 0.00M;
+									offerpart.Qty = (int)decimal.Floor(pod.OfferQty);
+
+									currentorder.lns[idx].MasterLine = iMasterLine;
+									currentorder.lns[idx].MasterMultiplier = pod.OfferQty;
+
+									if (currlineisnegative)
+									{
+										currentorder.lns[idx].Qty = -(int)decimal.Floor(pod.OfferQty);
+										txt = pad(offerpart.Description, 27) + " " + pad(offerpart.PartNumber, 6) + rpad(offerpart.Qty.ToString(), 3) + " " + rpad((offerpart.Price).ToString("F02"), 7) + " R";
+									}
+									else
+									{
+										currentorder.lns[idx].Qty = (int)decimal.Floor(pod.OfferQty);
+										txt = pad(offerpart.Description, 27) + " " + pad(offerpart.PartNumber, 6) + rpad(offerpart.Qty.ToString(), 3) + " " + rpad(offerpart.Price.ToString("F02"), 7);
+									}
+
+									lb1[0].Items.Add(txt);
+									lb1[0].Items.Add(st1[50] + " with line " + (iMasterLine + 1).ToString());
+									currentorder.lns[idx].CurrentUnitPrice = offerpart.Price;
+									currentorder.lns[idx].BaseUnitPrice = offerpart.Price;
+									currentorder.lns[idx].OrigPrice = offerpart.Price;
+									currentorder.lns[idx].BaseTaxPrice = offerpart.TaxValue;
+									currentorder.lns[idx].BaseNetPrice = offerpart.NetPrice;
+									currentorder.lns[idx].Discount = 0.0M;
+									currentorder.NumLines = currentorder.NumLines + 1;
+								}
+							}
+						}
+
+						recalcordertotal(id, currentorder);
+
+						changetext("L_HDG7", currentpart.PartNumber);
+						changetext("L_HDG8", currentpart.Description);
+						m_item_val = currentorder.LineVal.ToString("F02");
+						m_tot_val = currentorder.TotVal.ToString("F02");
+						lb1[0].SelectedIndex = idx * 2;
+
+						if (currlineisnegative)
+						{
+							newstate(49);
+							currlineisnegative = false;
+							return;
+						}
+
+						if (!selectnewsaleitem)
+						{
+							lb1[0].SelectedIndex = -1;
+							newstate(3);
+						}
+						else
+							newstate(4);
+
+					}
 				}
-				if ((eventdata == "DOWN") && (lb1[2].SelectionMode != SelectionMode.MultiSimple)) {	// arrow keys
-					idx = lb1[2].SelectedIndex;
-					if (idx < (lb1[2].Items.Count - 1))
-						lb1[2].SelectedIndex = idx + 1;
-					//				    lb1[2].Refresh();
-				}
+				//*/
+			} //stateevents.functionkey
+
+			if ((eventdata == "UP") && (lb1[2].SelectionMode != SelectionMode.MultiSimple))
+			{ // arrow keys
+				idx = lb1[2].SelectedIndex;
+				if (idx > 0)
+					lb1[2].SelectedIndex = idx - 1;
+				//					lb1[2].Refresh();
 			}
-			if (eventtype == stateevents.listboxchanged) {
+			if ((eventdata == "DOWN") && (lb1[2].SelectionMode != SelectionMode.MultiSimple))
+			{	// arrow keys
+				idx = lb1[2].SelectedIndex;
+				if (idx < (lb1[2].Items.Count - 1))
+					lb1[2].SelectedIndex = idx + 1;
+				//					lb1[2].Refresh();
+			}
+
+			if (eventtype == stateevents.listboxchanged)
+			{
 				lb1[2].Refresh();
 			}
 			if (eventtype == stateevents.textboxcret) {
-				changetext("L_HDG6","");	
+				changetext("L_HDG6", "");
 				hdg6waserror = false;
 
 				if (eventdata == "")
@@ -10563,22 +11053,27 @@ namespace epos {
 				searchres = new partsearch();
 				searchres.NumLines = 0;
 				searchpopup(true);
-				erc = elucid.searchpart(id,currentpart,searchres);
+				erc = elucid.searchpart(id, currentpart, searchres);
 				searchpopup(false);
-				if (erc == 0) {
-					if (searchres.NumLines > 0) {
+				if (erc == 0)
+				{
+					if (searchres.NumLines > 0)
+					{
 						idx = searchres.NumLines - 1;
-						if (searchres.lns[idx].Description == "More Data") {
+						if (searchres.lns[idx].Description == "More Data")
+						{
 							searchres.lns[idx].Description = st1[34];
 						}
 					}
-					for (idx = 0; idx < searchres.NumLines; idx++) {
+					for (idx = 0; idx < searchres.NumLines; idx++)
+					{
 						searchres.lns[idx].Qty = 1;
-//						txt = pad(searchres.lns[idx].Description,25) + " " + pad(searchres.lns[idx].PartNumber,8) + rpad(searchres.lns[idx].Qty.ToString(),3) + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7) + " ";
-						txt = this.layoutpartsearch(searchres.lns[idx].PartNumber,searchres.lns[idx].Description,searchres.lns[idx].Price.ToString("F02"),searchres.lns[idx].Qty.ToString()) + " ";
+						//						txt = pad(searchres.lns[idx].Description,25) + " " + pad(searchres.lns[idx].PartNumber,8) + rpad(searchres.lns[idx].Qty.ToString(),3) + " " + rpad(searchres.lns[idx].Price.ToString("F02"),7) + " ";
+						txt = this.layoutpartsearch(searchres.lns[idx].PartNumber, searchres.lns[idx].Description, searchres.lns[idx].Price.ToString("F02"), searchres.lns[idx].Qty.ToString()) + " ";
 						lb1[2].Items.Add(txt);
 					}
-					if (searchres.NumLines > 0) {
+					if (searchres.NumLines > 0)
+					{
 						idx = 0;
 						currentpart.PartNumber = searchres.lns[idx].PartNumber;
 						currentpart.Description = searchres.lns[idx].Description;
@@ -10587,21 +11082,23 @@ namespace epos {
 						if (lb1[2].SelectionMode != SelectionMode.MultiSimple)
 							lb1[2].SelectedIndex = 0;
 						else
-							lb1[2].SetSelected(0,false);
+							lb1[2].SetSelected(0, false);
 
 						newstate(12);		// refresh data
 						idx = searchres.NumLines - 1;
-						if (searchres.lns[idx].Description == st1[34]) {
-							changetext("L_HDG6",st1[34]);
+						if (searchres.lns[idx].Description == st1[34])
+						{
+							changetext("L_HDG6", st1[34]);
 							hdg6waserror = true; beep();
 						}
 					}
 				}
-				else {
+				else
+				{
 					if (id.ErrorMessage != "")
-						changetext("L_HDG6",id.ErrorMessage);
+						changetext("L_HDG6", id.ErrorMessage);
 					else
-						changetext("L_HDG6","EPOS Error 8");
+						changetext("L_HDG6", "EPOS Error 8");
 					hdg6waserror = true; beep();
 					return;
 				}
@@ -10610,9 +11107,11 @@ namespace epos {
 				newstate(12);		// refresh data
 				return;
 			}
-			if ((eventtype == stateevents.listboxchanged) && (eventname == "LB3")) {
+			if ((eventtype == stateevents.listboxchanged) && (eventname == "LB3"))
+			{
 				if ((idx = Convert.ToInt32(eventdata)) >= 0)
-					if ((string)lb1[2].Items[idx] != "") {
+					if ((string)lb1[2].Items[idx] != "")
+					{
 						currentpart.PartNumber = searchres.lns[idx].PartNumber;
 						currentpart.Description = searchres.lns[idx].Description;
 						currentpart.Price = searchres.lns[idx].Price;
@@ -10813,11 +11312,13 @@ namespace epos {
 						currentcust.Order = "";
 
 						custsearchres.NumLines = 0;
-						//			searchpopup(true);
+						//	searchpopup(true);
 						erc = elucid.searchcust(id,currentcust,custsearchres);
-						//			searchpopup(false);
-						if (erc == 0) {
-							if (custsearchres.NumLines > 0) {
+						//	searchpopup(false);
+						if (erc == 0)
+						{
+							if (custsearchres.NumLines > 0)
+							{
 								idx = 0;
 								currentcust.Address = custsearchres.lns[idx].Address;
 								currentcust.City = custsearchres.lns[idx].City;
@@ -10966,10 +11467,10 @@ namespace epos {
 
 				if (currentorder.TotVal < 0) {	// refund
 					if (outstanding == 0)
-						return;					// ignore repeated F1 key presses when copmplete
+						return;					// ignore repeated F1 key presses when complete
 				} else {
 					if (outstanding < 0)
-						return;					// ignore repeated F1/2/3 key presses when copmplete
+						return;					// ignore repeated F1/2/3 key presses when complete
 				}
 				
 				try {
@@ -11597,7 +12098,6 @@ namespace epos {
 
 			return;
 		}
-
 		#endregion
 		#region state15 Credit Card Processing
 		private void processstate_15(stateevents eventtype, string eventname, int eventtag, string eventdata) {
@@ -12095,6 +12595,7 @@ namespace epos {
 
 			if (eventtype == stateevents.functionkey) {
 				processingreturn = false;
+				enablecontrol("BF8", false);
 				if (eventdata == "CAPTURE") {
 					lb1[2].Items.Clear();
 					m_calling_state = 16;
@@ -12318,27 +12819,27 @@ namespace epos {
 									txt = pad(xName,21) + pad(custsearchres.lns[idx].City,15) + " " + pad(custsearchres.lns[idx].PostCode,8);
 								}
 							}
-                            else
-                            {
-                                if (custsearchres.lns[idx].CompanySearch)
-                                    txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                                else
-                                {
-                //                  txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].Surname, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                                    txt = this.layoutcustsearch(
-                                                    custsearchres.lns[idx].Customer,
-                                                    custsearchres.lns[idx].Title.Trim() + " " +
-                                                    custsearchres.lns[idx].Initials.Trim(),
-                                                    custsearchres.lns[idx].Surname.Trim(),
-                                                    custsearchres.lns[idx].PostCode,
-                                                    custsearchres.lns[idx].Address,
-                                                    custsearchres.lns[idx].CompanyName,
-                                                    custsearchres.lns[idx].Phone,
-                                                    custsearchres.lns[idx].EmailAddress,
-                                                    custsearchres.lns[idx].City,
-                                                    custsearchres.lns[idx].TradeAccount,
-                                                    custsearchres.lns[idx].Medical);
-                                }
+							else
+							{
+								if (custsearchres.lns[idx].CompanySearch)
+									txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+								else
+								{
+				//				  txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].Surname, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+									txt = this.layoutcustsearch(
+													custsearchres.lns[idx].Customer,
+													custsearchres.lns[idx].Title.Trim() + " " +
+													custsearchres.lns[idx].Initials.Trim(),
+													custsearchres.lns[idx].Surname.Trim(),
+													custsearchres.lns[idx].PostCode,
+													custsearchres.lns[idx].Address,
+													custsearchres.lns[idx].CompanyName,
+													custsearchres.lns[idx].Phone,
+													custsearchres.lns[idx].EmailAddress,
+													custsearchres.lns[idx].City,
+													custsearchres.lns[idx].TradeAccount,
+													custsearchres.lns[idx].Medical);
+								}
 							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
@@ -12397,25 +12898,25 @@ namespace epos {
 									txt = pad(xName,21) + pad(custsearchres.lns[idx].City,15) + " " + pad(custsearchres.lns[idx].PostCode,8);
 								}
 							} else {
-                                if (custsearchres.lns[idx].CompanySearch)
-                                    txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                                else
-                                {
-                //                  txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].Surname, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                                    txt = this.layoutcustsearch(
-                                                    custsearchres.lns[idx].Customer,
-                                                    custsearchres.lns[idx].Title.Trim() + " " +
-                                                    custsearchres.lns[idx].Initials.Trim(),
-                                                    custsearchres.lns[idx].Surname.Trim(),
-                                                    custsearchres.lns[idx].PostCode,
-                                                    custsearchres.lns[idx].Address,
-                                                    custsearchres.lns[idx].CompanyName,
-                                                    custsearchres.lns[idx].Phone,
-                                                    custsearchres.lns[idx].EmailAddress,
-                                                    custsearchres.lns[idx].City,
-                                                    custsearchres.lns[idx].TradeAccount,
-                                                    custsearchres.lns[idx].Medical);
-                                }
+								if (custsearchres.lns[idx].CompanySearch)
+									txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+								else
+								{
+				//				  txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].Surname, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+									txt = this.layoutcustsearch(
+													custsearchres.lns[idx].Customer,
+													custsearchres.lns[idx].Title.Trim() + " " +
+													custsearchres.lns[idx].Initials.Trim(),
+													custsearchres.lns[idx].Surname.Trim(),
+													custsearchres.lns[idx].PostCode,
+													custsearchres.lns[idx].Address,
+													custsearchres.lns[idx].CompanyName,
+													custsearchres.lns[idx].Phone,
+													custsearchres.lns[idx].EmailAddress,
+													custsearchres.lns[idx].City,
+													custsearchres.lns[idx].TradeAccount,
+													custsearchres.lns[idx].Medical);
+								}
 							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
@@ -12467,8 +12968,8 @@ namespace epos {
 					changecomb("EC_COUNTRY",id.DefCountry);
 					changetext("EC_PHONE_DAY",newcust.Phone);
 					changetext("EC_MOBILE",newcust.Mobile);
-                    changetext("EC_EMAIL_ADDRESS", newcust.EmailAddress);
-                    changecomb("EC_SOURCE_CODE", id.SourceCode);
+					changetext("EC_EMAIL_ADDRESS",newcust.EmailAddress);
+					changecomb("EC_SOURCE_CODE", id.SourceCode);
 					focuscontrol("EC_TITLE");
 					return;
 				}
@@ -12521,25 +13022,25 @@ namespace epos {
 								txt = pad(xName,21) + pad(custsearchres.lns[idx].City,15) + " " + pad(custsearchres.lns[idx].PostCode,8);
 							}
 						} else {
-                            if (custsearchres.lns[idx].CompanySearch)
-                                txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                            else
-                            {
-                //              txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].Surname, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                                txt = this.layoutcustsearch(
-                                                custsearchres.lns[idx].Customer,
-                                                custsearchres.lns[idx].Title.Trim() + " " +
-                                                custsearchres.lns[idx].Initials.Trim(),
-                                                custsearchres.lns[idx].Surname.Trim(),
-                                                custsearchres.lns[idx].PostCode,
-                                                custsearchres.lns[idx].Address,
-                                                custsearchres.lns[idx].CompanyName,
-                                                custsearchres.lns[idx].Phone,
-                                                custsearchres.lns[idx].EmailAddress,
-                                                custsearchres.lns[idx].City,
-                                                custsearchres.lns[idx].TradeAccount,
-                                                custsearchres.lns[idx].Medical);
-                            }
+							if (custsearchres.lns[idx].CompanySearch)
+								txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+							else
+							{
+				//			  txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].Surname, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+								txt = this.layoutcustsearch(
+												custsearchres.lns[idx].Customer,
+												custsearchres.lns[idx].Title.Trim() + " " +
+												custsearchres.lns[idx].Initials.Trim(),
+												custsearchres.lns[idx].Surname.Trim(),
+												custsearchres.lns[idx].PostCode,
+												custsearchres.lns[idx].Address,
+												custsearchres.lns[idx].CompanyName,
+												custsearchres.lns[idx].Phone,
+												custsearchres.lns[idx].EmailAddress,
+												custsearchres.lns[idx].City,
+												custsearchres.lns[idx].TradeAccount,
+												custsearchres.lns[idx].Medical);
+							}
 						}
 						if (custsearchres.lns[idx].NoteInd)
 							txt += " *";
@@ -12612,7 +13113,7 @@ namespace epos {
 			int idx;
 
 			if (eventtype == stateevents.functionkey)
-            {
+			{
 				if (eventdata == "NOTES") {
 					if (searchcust.NoteInd) {
 						string cust_notes = elucid.cust_notes(id,searchcust);
@@ -12623,12 +13124,12 @@ namespace epos {
 
 				}
 				if (eventdata == "SEARCHCUST")
-                {
+				{
 					processstate_18(stateevents.textboxcret,eventname,eventtag,tb1[0].Text);
 					return;
 				}
 				if (eventdata == "SEARCHPOSTCODE")
-                {
+				{
 					eventdata = tb1[0].Text;
 
 					if (eventdata == "")
@@ -12659,27 +13160,27 @@ namespace epos {
 									txt = pad(xName,21) + pad(custsearchres.lns[idx].City,15) + " " + pad(custsearchres.lns[idx].PostCode,8);
 								}
 							}
-                            else
-                            {
-                                if (custsearchres.lns[idx].CompanySearch)
-                                    txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                                else
-                                {
-                //                  txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].Surname, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                                    txt = this.layoutcustsearch(
-                                                    custsearchres.lns[idx].Customer,
-                                                    custsearchres.lns[idx].Title.Trim() + " " +
-                                                    custsearchres.lns[idx].Initials.Trim(),
-                                                    custsearchres.lns[idx].Surname.Trim(),
-                                                    custsearchres.lns[idx].PostCode,
-                                                    custsearchres.lns[idx].Address,
-                                                    custsearchres.lns[idx].CompanyName,
-                                                    custsearchres.lns[idx].Phone,
-                                                    custsearchres.lns[idx].EmailAddress,
-                                                    custsearchres.lns[idx].City,
-                                                    custsearchres.lns[idx].TradeAccount,
-                                                    custsearchres.lns[idx].Medical);
-                                }
+							else
+							{
+								if (custsearchres.lns[idx].CompanySearch)
+									txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+								else
+								{
+				//				  txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].Surname, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+									txt = this.layoutcustsearch(
+													custsearchres.lns[idx].Customer,
+													custsearchres.lns[idx].Title.Trim() + " " +
+													custsearchres.lns[idx].Initials.Trim(),
+													custsearchres.lns[idx].Surname.Trim(),
+													custsearchres.lns[idx].PostCode,
+													custsearchres.lns[idx].Address,
+													custsearchres.lns[idx].CompanyName,
+													custsearchres.lns[idx].Phone,
+													custsearchres.lns[idx].EmailAddress,
+													custsearchres.lns[idx].City,
+													custsearchres.lns[idx].TradeAccount,
+													custsearchres.lns[idx].Medical);
+								}
 							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
@@ -12734,25 +13235,25 @@ namespace epos {
 									txt = pad(xName,21) + pad(custsearchres.lns[idx].City,15) + " " + pad(custsearchres.lns[idx].PostCode,8);
 								}
 							} else {
-                                if (custsearchres.lns[idx].CompanySearch)
-                                    txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                                else
-                                {
-                //                  txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                    txt = this.layoutcustsearch(
-                                                    custsearchres.lns[idx].Customer,
-                                                    custsearchres.lns[idx].Title.Trim() + " " +
-                                                    custsearchres.lns[idx].Initials.Trim(),
-                                                    custsearchres.lns[idx].Surname.Trim(),
-                                                    custsearchres.lns[idx].PostCode,
-                                                    custsearchres.lns[idx].Address,
-                                                    custsearchres.lns[idx].CompanyName,
-                                                    custsearchres.lns[idx].Phone,
-                                                    custsearchres.lns[idx].EmailAddress,
-                                                    custsearchres.lns[idx].City,
-                                                    custsearchres.lns[idx].TradeAccount,
-                                                    custsearchres.lns[idx].Medical);
-                                }
+								if (custsearchres.lns[idx].CompanySearch)
+									txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+								else
+								{
+				//				  txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
+									txt = this.layoutcustsearch(
+													custsearchres.lns[idx].Customer,
+													custsearchres.lns[idx].Title.Trim() + " " +
+													custsearchres.lns[idx].Initials.Trim(),
+													custsearchres.lns[idx].Surname.Trim(),
+													custsearchres.lns[idx].PostCode,
+													custsearchres.lns[idx].Address,
+													custsearchres.lns[idx].CompanyName,
+													custsearchres.lns[idx].Phone,
+													custsearchres.lns[idx].EmailAddress,
+													custsearchres.lns[idx].City,
+													custsearchres.lns[idx].TradeAccount,
+													custsearchres.lns[idx].Medical);
+								}
 							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
@@ -12799,9 +13300,9 @@ namespace epos {
 					changetext("EC_POST_CODE",newcust.PostCode);
 					changecomb("EC_COUNTRY",id.DefCountry);
 					changetext("EC_PHONE_DAY",newcust.Phone);
-                    changetext("EC_MOBILE", newcust.Mobile);
+					changetext("EC_MOBILE",newcust.Mobile);
 					changetext("EC_EMAIL_ADDRESS",newcust.EmailAddress);
-                    changecomb("EC_SOURCE_CODE", id.SourceCode);
+					changecomb("EC_SOURCE_CODE", id.SourceCode);
 					focuscontrol("EC_TITLE");
 					return;
 				}
@@ -12859,25 +13360,25 @@ namespace epos {
 								txt = pad(xName,21) + pad(custsearchres.lns[idx].City,15) + " " + pad(custsearchres.lns[idx].PostCode,8);
 							}
 						} else {
-                            if (custsearchres.lns[idx].CompanySearch)
-                                txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
-                            else
-                            {
-                //				txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                txt = this.layoutcustsearch(
-                                                custsearchres.lns[idx].Customer,
-                                                custsearchres.lns[idx].Title.Trim() + " " +
-                                                custsearchres.lns[idx].Initials.Trim(),
-                                                custsearchres.lns[idx].Surname.Trim(),
-                                                custsearchres.lns[idx].PostCode,
-                                                custsearchres.lns[idx].Address,
-                                                custsearchres.lns[idx].CompanyName,
-                                                custsearchres.lns[idx].Phone,
-                                                custsearchres.lns[idx].EmailAddress,
-                                                custsearchres.lns[idx].City,
-                                                custsearchres.lns[idx].TradeAccount,
-                                                custsearchres.lns[idx].Medical);
-                            }
+							if (custsearchres.lns[idx].CompanySearch)
+								txt = pad(custsearchres.lns[idx].Customer, 12) + " " + pad(custsearchres.lns[idx].CompanyName, 20) + " " + pad(custsearchres.lns[idx].PostCode, 8);
+							else
+							{
+				//				txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
+								txt = this.layoutcustsearch(
+												custsearchres.lns[idx].Customer,
+												custsearchres.lns[idx].Title.Trim() + " " +
+												custsearchres.lns[idx].Initials.Trim(),
+												custsearchres.lns[idx].Surname.Trim(),
+												custsearchres.lns[idx].PostCode,
+												custsearchres.lns[idx].Address,
+												custsearchres.lns[idx].CompanyName,
+												custsearchres.lns[idx].Phone,
+												custsearchres.lns[idx].EmailAddress,
+												custsearchres.lns[idx].City,
+												custsearchres.lns[idx].TradeAccount,
+												custsearchres.lns[idx].Medical);
+							}
 
 						}
 						if (custsearchres.lns[idx].NoteInd)
@@ -12945,13 +13446,14 @@ namespace epos {
 			return;
 		}
 		#endregion
-		#region state19 Part Stock Enquiry Displayed
+		#region state19 Part Stock Enquiry Displayedm
 		// state 19
 		// Part Strock Enquiry
 		private void processstate_19(stateevents eventtype, string eventname, int eventtag, string eventdata) {
 			string imagefile;
 
-			if (eventtype == stateevents.functionkey) {
+			if (eventtype == stateevents.functionkey)
+			{
 				if ((eventdata == "CANCEL") || (eventdata == "ESC")) {  // cancel
 					if (m_calling_state == 12)
 						newstate(m_calling_state);
@@ -12966,20 +13468,28 @@ namespace epos {
 				}
 			}
 			if (eventdata == "IMAGE") // image
-				if (currentpart.PartNumber != "") {
-					int erc = elucid.validatepart(id,currentpart,currentcust,false);
-					newstate(32);
+			{
+				if (currentpart.PartNumber != "")
+				{
+					elucid.validatepart(id, currentpart, currentcust, false);
 					imagefile = currentpart.PartNumber + ".jpg";
-					loadimage("IMAGE1",imagefile);
-					this.loadfulldesc("L_FULLDESC",currentpart.FullDescription);
-
-
-
+					bool imageFound = loadimage("IMAGE1", imagefile);
+					if ((imageFound) || (currentpart.FullDescription == ""))					
+					{
+						// sjl, 16/09/2008: new state to show only description.
+						newstate(32);
+						this.loadfulldesc("L_FULLDESC", currentpart.FullDescription);
+						loadimage("IMAGE1", imagefile);
+					}
+					else
+					{
+						newstate(74);
+						this.loadfulldesc("L_FULLDESC2", currentpart.FullDescription);
+					}
 				}
-
+			}
 			return;
-		}
-	
+		}	
 		#endregion
 		#region state20 Complete Order
 		private void processstate_20(stateevents eventtype, string eventname, int eventtag, string eventdata) {
@@ -13031,21 +13541,21 @@ namespace epos {
 								if (custsearchres.lns[idx].CompanySearch)
 									txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 								else {
-			    //  				txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                    txt = this.layoutcustsearch(
-                                                    custsearchres.lns[idx].Customer,
-                                                    custsearchres.lns[idx].Title.Trim() + " " +
-                                                    custsearchres.lns[idx].Initials.Trim(),
-                                                    custsearchres.lns[idx].Surname.Trim(),
-                                                    custsearchres.lns[idx].PostCode,
-                                                    custsearchres.lns[idx].Address,
-                                                    custsearchres.lns[idx].CompanyName,
-                                                    custsearchres.lns[idx].Phone,
-                                                    custsearchres.lns[idx].EmailAddress,
-                                                    custsearchres.lns[idx].City,
-                                                    custsearchres.lns[idx].TradeAccount,
-                                                    custsearchres.lns[idx].Medical);
-                                }
+				//  				txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
+									txt = this.layoutcustsearch(
+													custsearchres.lns[idx].Customer,
+													custsearchres.lns[idx].Title.Trim() + " " +
+													custsearchres.lns[idx].Initials.Trim(),
+													custsearchres.lns[idx].Surname.Trim(),
+													custsearchres.lns[idx].PostCode,
+													custsearchres.lns[idx].Address,
+													custsearchres.lns[idx].CompanyName,
+													custsearchres.lns[idx].Phone,
+													custsearchres.lns[idx].EmailAddress,
+													custsearchres.lns[idx].City,
+													custsearchres.lns[idx].TradeAccount,
+													custsearchres.lns[idx].Medical);
+								}
 							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
@@ -13143,20 +13653,20 @@ namespace epos {
 									txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 								else {
 								//	txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                    txt = this.layoutcustsearch(
-                                                    custsearchres.lns[idx].Customer,
-                                                    custsearchres.lns[idx].Title.Trim() + " " +
-                                                    custsearchres.lns[idx].Initials.Trim(),
-                                                    custsearchres.lns[idx].Surname.Trim(),
-                                                    custsearchres.lns[idx].PostCode,
-                                                    custsearchres.lns[idx].Address,
-                                                    custsearchres.lns[idx].CompanyName,
-                                                    custsearchres.lns[idx].Phone,
-                                                    custsearchres.lns[idx].EmailAddress,
-                                                    custsearchres.lns[idx].City,
-                                                    custsearchres.lns[idx].TradeAccount,
-                                                    custsearchres.lns[idx].Medical);
-                                }
+									txt = this.layoutcustsearch(
+													custsearchres.lns[idx].Customer,
+													custsearchres.lns[idx].Title.Trim() + " " +
+													custsearchres.lns[idx].Initials.Trim(),
+													custsearchres.lns[idx].Surname.Trim(),
+													custsearchres.lns[idx].PostCode,
+													custsearchres.lns[idx].Address,
+													custsearchres.lns[idx].CompanyName,
+													custsearchres.lns[idx].Phone,
+													custsearchres.lns[idx].EmailAddress,
+													custsearchres.lns[idx].City,
+													custsearchres.lns[idx].TradeAccount,
+													custsearchres.lns[idx].Medical);
+								}
 							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
@@ -13260,9 +13770,9 @@ namespace epos {
 					changetext("EC_POST_CODE",newcust.PostCode);
 					changecomb("EC_COUNTRY",id.DefCountry);
 					changetext("EC_PHONE_DAY",newcust.Phone);
-                    changetext("EC_MOBILE", newcust.Mobile);
+					changetext("EC_MOBILE", newcust.Mobile);
 					changetext("EC_EMAIL_ADDRESS",newcust.EmailAddress);
-                    changecomb("EC_SOURCE_CODE", id.SourceCode);
+					changecomb("EC_SOURCE_CODE", id.SourceCode);
 					focuscontrol("EC_TITLE");
 					return;
 				}
@@ -13369,20 +13879,20 @@ namespace epos {
 								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 							else {
 //								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                txt = this.layoutcustsearch(
-                                                custsearchres.lns[idx].Customer,
-                                                custsearchres.lns[idx].Title.Trim() + " " +
-                                                custsearchres.lns[idx].Initials.Trim(),
-                                                custsearchres.lns[idx].Surname.Trim(),
-                                                custsearchres.lns[idx].PostCode,
-                                                custsearchres.lns[idx].Address,
-                                                custsearchres.lns[idx].CompanyName,
-                                                custsearchres.lns[idx].Phone,
-                                                custsearchres.lns[idx].EmailAddress,
-                                                custsearchres.lns[idx].City,
-                                                custsearchres.lns[idx].TradeAccount,
-                                                custsearchres.lns[idx].Medical);
-                            }
+								txt = this.layoutcustsearch(
+												custsearchres.lns[idx].Customer,
+												custsearchres.lns[idx].Title.Trim() + " " +
+												custsearchres.lns[idx].Initials.Trim(),
+												custsearchres.lns[idx].Surname.Trim(),
+												custsearchres.lns[idx].PostCode,
+												custsearchres.lns[idx].Address,
+												custsearchres.lns[idx].CompanyName,
+												custsearchres.lns[idx].Phone,
+												custsearchres.lns[idx].EmailAddress,
+												custsearchres.lns[idx].City,
+												custsearchres.lns[idx].TradeAccount,
+												custsearchres.lns[idx].Medical);
+							}
 						}
 						if (custsearchres.lns[idx].NoteInd)
 							txt += " *";
@@ -13528,20 +14038,20 @@ namespace epos {
 									txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 								else {
 //									txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                    txt = this.layoutcustsearch(
-                                                    custsearchres.lns[idx].Customer,
-                                                    custsearchres.lns[idx].Title.Trim() + " " +
-                                                    custsearchres.lns[idx].Initials.Trim(),
-                                                    custsearchres.lns[idx].Surname.Trim(),
-                                                    custsearchres.lns[idx].PostCode,
-                                                    custsearchres.lns[idx].Address,
-                                                    custsearchres.lns[idx].CompanyName,
-                                                    custsearchres.lns[idx].Phone,
-                                                    custsearchres.lns[idx].EmailAddress,
-                                                    custsearchres.lns[idx].City,
-                                                    custsearchres.lns[idx].TradeAccount,
-                                                    custsearchres.lns[idx].Medical);
-                                }
+									txt = this.layoutcustsearch(
+													custsearchres.lns[idx].Customer,
+													custsearchres.lns[idx].Title.Trim() + " " +
+													custsearchres.lns[idx].Initials.Trim(),
+													custsearchres.lns[idx].Surname.Trim(),
+													custsearchres.lns[idx].PostCode,
+													custsearchres.lns[idx].Address,
+													custsearchres.lns[idx].CompanyName,
+													custsearchres.lns[idx].Phone,
+													custsearchres.lns[idx].EmailAddress,
+													custsearchres.lns[idx].City,
+													custsearchres.lns[idx].TradeAccount,
+													custsearchres.lns[idx].Medical);
+								}
 							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
@@ -13637,20 +14147,20 @@ namespace epos {
 									txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 								else {
 //									txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                    txt = this.layoutcustsearch(
-                                                    custsearchres.lns[idx].Customer,
-                                                    custsearchres.lns[idx].Title.Trim() + " " +
-                                                    custsearchres.lns[idx].Initials.Trim(),
-                                                    custsearchres.lns[idx].Surname.Trim(),
-                                                    custsearchres.lns[idx].PostCode,
-                                                    custsearchres.lns[idx].Address,
-                                                    custsearchres.lns[idx].CompanyName,
-                                                    custsearchres.lns[idx].Phone,
-                                                    custsearchres.lns[idx].EmailAddress,
-                                                    custsearchres.lns[idx].City,
-                                                    custsearchres.lns[idx].TradeAccount,
-                                                    custsearchres.lns[idx].Medical);
-                                }
+									txt = this.layoutcustsearch(
+													custsearchres.lns[idx].Customer,
+													custsearchres.lns[idx].Title.Trim() + " " +
+													custsearchres.lns[idx].Initials.Trim(),
+													custsearchres.lns[idx].Surname.Trim(),
+													custsearchres.lns[idx].PostCode,
+													custsearchres.lns[idx].Address,
+													custsearchres.lns[idx].CompanyName,
+													custsearchres.lns[idx].Phone,
+													custsearchres.lns[idx].EmailAddress,
+													custsearchres.lns[idx].City,
+													custsearchres.lns[idx].TradeAccount,
+													custsearchres.lns[idx].Medical);
+								}
 							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
@@ -13739,7 +14249,8 @@ namespace epos {
 
 						gotcustomer = true;
 
-						if ((currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) {
+						if (( (currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) && showvoucherinfo)
+						{
 							this.m_calling_state = 10;
 							newstate(68);
 							fillvouchers(currentcust);
@@ -13757,17 +14268,17 @@ namespace epos {
 							changetext("L_CUST2","Cust: $CUST");
 						}
 
-
-						if (currentcust.TradeAccount != "") {
+						if (currentcust.TradeAccount != "")
+						{
 							changetext("LF5",st1[42]);
 						}
-						else {
+						else
+						{
 							changetext("LF5",st1[43]);
 						}
 
 						return;
 					}
-
 				}
 				if (eventdata == "DELIVERYOPTIONS") {
 					// go to state 62 to ask for delivery options
@@ -13776,7 +14287,8 @@ namespace epos {
 					this.m_item_val = outstanding.ToString("F02");
 
 					gotcustomer = true;
-					if ((currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) {
+					if (( (currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) && showvoucherinfo)
+					{
 						this.m_calling_state = 62;
 						newstate(68);
 						fillvouchers(currentcust);
@@ -13790,7 +14302,8 @@ namespace epos {
 				if (eventdata == "DELIVERLATER") {	// process this customer - deliver later
 					lb1[0].SelectedIndex = -1;
 					currentcust = new custdata(searchcust);
-					if ((currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) {
+					if ( ((currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) && showvoucherinfo)
+					{
 						this.m_calling_state = 33;
 						newstate(68);
 						fillvouchers(currentcust);
@@ -13799,7 +14312,8 @@ namespace epos {
 
 					newstate(33);
 					gotcustomer = true;
-					changetext("EC_TITLE",currentcust.DelTitle);
+
+					changetext("EC_TITLE", returnAsTitleCase(currentcust.DelTitle));
 					changetext("EC_INITIALS",currentcust.DelInitials);
 					changetext("EC_SURNAME",currentcust.DelSurname);
 					changetext("EC_ADDRESS",currentcust.DelAddress);
@@ -13808,9 +14322,9 @@ namespace epos {
 					changetext("EC_POST_CODE",currentcust.DelPostCode);
 					changecomb("EC_COUNTRY",currentcust.DelCountryCode);
 					changetext("EC_PHONE_DAY",currentcust.DelPhone);
-                    changetext("EC_MOBILE", currentcust.DelMobile);
+					changetext("EC_MOBILE", currentcust.DelMobile);
 					changetext("EC_EMAIL_ADDRESS",currentcust.DelEmailAddress);
-                    return;
+					return;
 				}
 				if ((eventdata == "CANCEL") || (eventdata == "ESC")) {
 					if (sequenceoption == 2) {
@@ -13854,9 +14368,9 @@ namespace epos {
 					changetext("EC_POST_CODE",newcust.PostCode);
 					changecomb("EC_COUNTRY",id.DefCountry);
 					changetext("EC_PHONE_DAY",newcust.Phone);
-                    changetext("EC_MOBILE", newcust.Mobile);
+					changetext("EC_MOBILE", newcust.Mobile);
 					changetext("EC_EMAIL_ADDRESS",newcust.EmailAddress);
-                    changecomb("EC_SOURCE_CODE", id.SourceCode);
+					changecomb("EC_SOURCE_CODE", id.SourceCode);
 					focuscontrol("EC_TITLE");
 					return;
 				}
@@ -13935,20 +14449,20 @@ namespace epos {
 								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 							else {
 //								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                txt = this.layoutcustsearch(
-                                                custsearchres.lns[idx].Customer,
-                                                custsearchres.lns[idx].Title.Trim() + " " +
-                                                custsearchres.lns[idx].Initials.Trim(),
-                                                custsearchres.lns[idx].Surname.Trim(),
-                                                custsearchres.lns[idx].PostCode,
-                                                custsearchres.lns[idx].Address,
-                                                custsearchres.lns[idx].CompanyName,
-                                                custsearchres.lns[idx].Phone,
-                                                custsearchres.lns[idx].EmailAddress,
-                                                custsearchres.lns[idx].City,
-                                                custsearchres.lns[idx].TradeAccount,
-                                                custsearchres.lns[idx].Medical);
-                            }
+								txt = this.layoutcustsearch(
+												custsearchres.lns[idx].Customer,
+												custsearchres.lns[idx].Title.Trim() + " " +
+												custsearchres.lns[idx].Initials.Trim(),
+												custsearchres.lns[idx].Surname.Trim(),
+												custsearchres.lns[idx].PostCode,
+												custsearchres.lns[idx].Address,
+												custsearchres.lns[idx].CompanyName,
+												custsearchres.lns[idx].Phone,
+												custsearchres.lns[idx].EmailAddress,
+												custsearchres.lns[idx].City,
+												custsearchres.lns[idx].TradeAccount,
+												custsearchres.lns[idx].Medical);
+							}
 						}
 						if (custsearchres.lns[idx].NoteInd)
 							txt += " *";
@@ -14412,7 +14926,6 @@ namespace epos {
 
 			return;
 		}
-
 		#endregion
 		#region state26 Credit Card Deposit Processing
 		private void processstate_26(stateevents eventtype, string eventname, int eventtag, string eventdata) {
@@ -15007,7 +15520,7 @@ namespace epos {
 			int erc;
 
 			if (eventtype == stateevents.functionkey)
-            {
+			{
 				if (eventdata == "ADD") {
 					newcust.Title = gettext("EC_TITLE");
 					newcust.Initials = gettext("EC_INITIALS");
@@ -15021,10 +15534,10 @@ namespace epos {
 					if (erc > 0)
 						newcust.CountryCode = newcust.CountryCode.Substring(0,erc);
 					newcust.Phone = gettext("EC_PHONE_DAY");
-                    newcust.Mobile = gettext("EC_MOBILE");
+					newcust.Mobile = gettext("EC_MOBILE");
 					newcust.EmailAddress = gettext("EC_EMAIL_ADDRESS");
-                    newcust.CompanyName = gettext("EC_COMPANY_NAME");
-                    txt = gettext("EC_SOURCE_CODE");
+					newcust.CompanyName = gettext("EC_COMPANY_NAME");
+					txt = gettext("EC_SOURCE_CODE");
 					erc = txt.IndexOf(" ");
 					if (erc > 0) {
 						txt = txt.Substring(0,erc);
@@ -15087,23 +15600,37 @@ namespace epos {
 				if ((eventdata == "POSTCODE")  && (gettext("EC_POST_CODE") != "")) {
 					string postcode = formatpostcode(gettext("EC_POST_CODE"),true);
 					
-					if (PafDSN == "") {
+					if (PafDSN == "")
+					{
 						custdata postcodecust = new custdata();
 						int postcode_res = elucid.postcodelookup(id,postcode,postcodecust);
 						if (postcode_res == 0) {
 							changetext("EC_POST_CODE",postcodecust.PostCode);
-							
+							/**/
 							changetext("EC_ADDRESS",postcodecust.Address.Replace("\r","\r\n"));
 							changetext("EC_CITY",postcodecust.City.Replace("\r","\r\n"));
 							changetext("EC_COUNTY",postcodecust.County);
 							focuscontrol("EC_TITLE");
-						} else {
+						}
+						else
+						{
 							changetext("L_HDG6","Postcode Not Found");
 							hdg6waserror = true; beep();
 						}
-					} else {
-						System.Data.Odbc.OdbcConnection dc = new System.Data.Odbc.OdbcConnection("DSN="+PafDSN+";UID="+PafUser+";PWD="+PafPWD);
+					}
+					else
+					{
+						string connStr = "";
+						connStr = "DSN=" + PafDSN + ";UID=" + PafUser;// +";";
+
+						if (PafPWD != "")
+							connStr += ";PWD=" + PafPWD;
+#if PRINT_TO_FILE
+						ydebug(connStr);
+#endif
+						System.Data.Odbc.OdbcConnection dc = new System.Data.Odbc.OdbcConnection(connStr);
 						dc.Open();
+
 						System.Data.Odbc.OdbcDataAdapter da2 = new System.Data.Odbc.OdbcDataAdapter("select Postcode, [Address Line] as addr, Postkey from AddressFastFind('" + postcode + "')",dc);
 						System.Data.DataSet ds2 = new DataSet();
 						int res2 = da2.Fill(ds2);
@@ -15111,7 +15638,6 @@ namespace epos {
 							string pc2 = ds2.Tables[0].Rows[0]["postcode"].ToString();
 							string ad2 = ds2.Tables[0].Rows[0]["addr"].ToString();
 							string pk2 = ds2.Tables[0].Rows[0]["postkey"].ToString();
-
 						}
 
 						System.Data.Odbc.OdbcDataAdapter da = new System.Data.Odbc.OdbcDataAdapter("select property, postcode, street, town, tradcounty as county from AddressLookup('" + postcode + "','')",dc);
@@ -15188,21 +15714,21 @@ namespace epos {
 						focuscontrol("EC_COUNTRY");
 						return;
 					}
-                    if (this.ActiveControl.Name == "EC_MOBILE") {
+					if (this.ActiveControl.Name == "EC_MOBILE") {
 						focuscontrol("EC_PHONE_DAY");
 						return;
 					}
 					if (this.ActiveControl.Name == "EC_EMAIL_ADDRESS") {
-                        focuscontrol("EC_MOBILE");
+						focuscontrol("EC_MOBILE");
 						return;
 					}
-                    if (this.ActiveControl.Name == "EC_COMPANY_NAME")
-                    {
-                        focuscontrol("EC_EMAIL_ADDRESS");
-                        return;
-                    }
-                    if (this.ActiveControl.Name == "EC_SOURCE_CODE")
-                    {
+					if (this.ActiveControl.Name == "EC_COMPANY_NAME")
+					{
+						focuscontrol("EC_EMAIL_ADDRESS");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_SOURCE_CODE")
+					{
 						focuscontrol("EC_COMPANY_NAME");
 						return;
 					}
@@ -15235,7 +15761,7 @@ namespace epos {
 					}
 				}
 				if (eventdata == "TAB") {
-					    if (this.ActiveControl.Name == "EC_TITLE") {
+						if (this.ActiveControl.Name == "EC_TITLE") {
 						focuscontrol("EC_INITIALS");
 						return;
 					}
@@ -15268,21 +15794,21 @@ namespace epos {
 						return;
 					}
 					if (this.ActiveControl.Name == "EC_PHONE_DAY") {
-                        focuscontrol("EC_MOBILE");
+						focuscontrol("EC_MOBILE");
 						return;
 					}
-                    if (this.ActiveControl.Name == "EC_MOBILE")
-                    {
+					if (this.ActiveControl.Name == "EC_MOBILE")
+					{
 						focuscontrol("EC_EMAIL_ADDRESS");
 						return;
 					}
-                    if (this.ActiveControl.Name == "EC_EMAIL_ADDRESS")
-                    {
-                        focuscontrol("EC_COMPANY_NAME");
-                        return;
-                    }
-                    if (this.ActiveControl.Name == "EC_COMPANY_NAME")
-                    {
+					if (this.ActiveControl.Name == "EC_EMAIL_ADDRESS")
+					{
+						focuscontrol("EC_COMPANY_NAME");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COMPANY_NAME")
+					{
 						focuscontrol("EC_SOURCE_CODE");
 						return;
 					}
@@ -15350,11 +15876,11 @@ namespace epos {
 					return;
 				}
 				if (eventname == "EC_PHONE_DAY") {
-                    focuscontrol("EC_MOBILE");
+					focuscontrol("EC_MOBILE");
 					return;
 				}
-                if (eventname == "EC_MOBILE")
-                {
+				if (eventname == "EC_MOBILE")
+				{
 					focuscontrol("EC_EMAIL_ADDRESS");
 					return;
 				}
@@ -15362,11 +15888,16 @@ namespace epos {
 					focuscontrol("EC_COMPANY_NAME");
 					return;
 				}
-                if (eventname == "EC_COMPANY_NAME")
-                {
-                    focuscontrol("EC_SOURCE_CODE");
-                    return;
-                }
+				if (eventname == "EC_COMPANY_NAME")
+				{
+					focuscontrol("EC_SOURCE_CODE");
+					return;
+				}
+				if (eventname == "EC_SOURCE_CODE")
+				{
+					focuscontrol("EC_SOURCE_CODE");
+					return;
+				}
 
 				if ((gettext("EC_SURNAME") != "") &&
 					(gettext("EC_POST_CODE") != "") &&
@@ -15492,9 +16023,9 @@ namespace epos {
 						currentcust.DelPhone = currentcust.Phone;
 						currentcust.DelMobile = currentcust.Mobile;
 						currentcust.DelEmailAddress = currentcust.EmailAddress;
-                        currentcust.DelCompanyName = currentcust.CompanyName;
+						currentcust.DelCompanyName = currentcust.CompanyName;
 						newstate(33);
-						changetext("EC_TITLE",currentcust.DelTitle);
+						changetext("EC_TITLE",returnAsTitleCase(currentcust.DelTitle));
 						changetext("EC_INITIALS",currentcust.DelInitials);
 						changetext("EC_SURNAME",currentcust.DelSurname);
 						changetext("EC_ADDRESS",currentcust.DelAddress);
@@ -15503,9 +16034,9 @@ namespace epos {
 						changetext("EC_POST_CODE",currentcust.DelPostCode);
 						changecomb("EC_COUNTRY",currentcust.DelCountryCode);
 						changetext("EC_PHONE_DAY",currentcust.DelPhone);
-                        changetext("EC_MOBILE", currentcust.DelMobile);
+						changetext("EC_MOBILE", currentcust.DelMobile);
 						changetext("EC_EMAIL_ADDRESS",currentcust.DelEmailAddress);
-                        return;
+						return;
 					}
 				}
 				if ((eventdata == "CANCEL") || (eventdata == "ESC")) {
@@ -15535,7 +16066,7 @@ namespace epos {
 							currentcust.County = custsearchres.lns[idx].County;
 							currentcust.Customer= custsearchres.lns[idx].Customer;
 							currentcust.EmailAddress = custsearchres.lns[idx].EmailAddress;
-                            currentcust.CompanyName = custsearchres.lns[idx].CompanyName;
+							currentcust.CompanyName = custsearchres.lns[idx].CompanyName;
 							currentcust.Initials = custsearchres.lns[idx].Initials;
 							currentcust.Order = custsearchres.lns[idx].Order;
 							currentcust.Phone = custsearchres.lns[idx].Phone;
@@ -15763,9 +16294,9 @@ namespace epos {
 						currentcust.DelCountryCode = currentcust.DelCountryCode.Substring(0,erc-1);
 
 					currentcust.DelPhone = gettext("EC_PHONE_DAY");
-                    currentcust.DelMobile = gettext("EC_MOBILE");
+					currentcust.DelMobile = gettext("EC_MOBILE");
 					currentcust.DelEmailAddress = gettext("EC_EMAIL_ADDRESS");
-                    //currentcust.DelCompanyName = gettext("EC_COMPANY_NAME");
+					//currentcust.DelCompanyName = gettext("EC_COMPANY_NAME");
 					currentorder.CollectionType = "Deliver";
 					currentorder.OrdCarrier = "";
 					currentorder.DelMethod = "";
@@ -15815,10 +16346,10 @@ namespace epos {
 						currentcust.DelCountryCode = currentcust.DelCountryCode.Substring(0,erc-1);
 
 					currentcust.DelPhone = gettext("EC_PHONE_DAY");
-                    currentcust.DelMobile = gettext("EC_MOBILE");
+					currentcust.DelMobile = gettext("EC_MOBILE");
 					currentcust.DelEmailAddress = gettext("EC_EMAIL_ADDRESS");
-                    //currentcust.DelCompanyName = gettext("EC_COMPANY_NAME");
-                    currentorder.CollectionType = "Collect";
+					//currentcust.DelCompanyName = gettext("EC_COMPANY_NAME");
+					currentorder.CollectionType = "Collect";
 					currentorder.OrdCarrier = "";
 					currentorder.DelMethod = "";
 					if (sequenceoption == 2) {
@@ -15887,20 +16418,20 @@ namespace epos {
 						focuscontrol("EC_PHONE_DAY");
 					}
 					if (eventname == "EC_PHONE_DAY") {
-                        focuscontrol("EC_MOBILE");
+						focuscontrol("EC_MOBILE");
 					}
-                    if (eventname == "EC_MOBILE")
-                    {
+					if (eventname == "EC_MOBILE")
+					{
 						focuscontrol("EC_EMAIL_ADDRESS");
 					}
 					if (eventname == "EC_EMAIL_ADDRESS") {
 						//focuscontrol("EC_TITLE");
-                        focuscontrol("EC0A");
-                    }
-                    if (eventname == "EC_COMPANY_NAME"){
-                        focuscontrol("EC_TITLE");
-                    }
-                    if ((gettext("EC_SURNAME") != "") &&
+						focuscontrol("EC0A");
+					}
+					if (eventname == "EC_COMPANY_NAME"){
+						focuscontrol("EC_TITLE");
+					}
+					if ((gettext("EC_SURNAME") != "") &&
 						(gettext("EC_ADDRESS") != "") &&
 						(gettext("EC_CITY") != "") &&
 						(gettext("EC_COUNTRY") != "") &&
@@ -15939,18 +16470,18 @@ namespace epos {
 					if (eventname == "EC_PHONE_DAY") {
 						focuscontrol("EC_COUNTRY");
 					}
-                    if (eventname == "EC_MOBILE")
-                    {
-                        focuscontrol("EC_PHONE_DAY");
+					if (eventname == "EC_MOBILE")
+					{
+						focuscontrol("EC_PHONE_DAY");
 					}
 					if (eventname == "EC_EMAIL_ADDRESS") {
-                        focuscontrol("EC_MOBILE");
+						focuscontrol("EC_MOBILE");
 					}
-                    if (eventname == "EC_COMPANY_NAME")
-                    {
-                        focuscontrol("EC_EMAIL_ADDRESS");
-                    }
-                    if ((gettext("EC_SURNAME") != "") &&
+					if (eventname == "EC_COMPANY_NAME")
+					{
+						focuscontrol("EC_EMAIL_ADDRESS");
+					}
+					if ((gettext("EC_SURNAME") != "") &&
 						(gettext("EC_ADDRESS") != "") &&
 						(gettext("EC_CITY") != "") &&
 						(gettext("EC_COUNTRY") != "") &&
@@ -15988,19 +16519,19 @@ namespace epos {
 					focuscontrol("EC_PHONE_DAY");
 				}
 				if (eventname == "EC_PHONE_DAY") {
-                    focuscontrol("EC_MOBILE");
+					focuscontrol("EC_MOBILE");
 				}
-                if (eventname == "EC_MOBILE")
-                {
+				if (eventname == "EC_MOBILE")
+				{
 					focuscontrol("EC_EMAIL_ADDRESS");
 				}
 				if (eventname == "EC_EMAIL_ADDRESS") {
 					//focuscontrol("EC_COMPANY_NAME");
-                    focuscontrol("EC_TITLE");
-                }
-                if (eventname == "EC_COMPANY_NAME") {
-                    focuscontrol("EC_TITLE");
-                }
+					focuscontrol("EC_TITLE");
+				}
+				if (eventname == "EC_COMPANY_NAME") {
+					focuscontrol("EC_TITLE");
+				}
 
 				if ((gettext("EC_SURNAME") != "") &&
 					(gettext("EC_ADDRESS") != "") &&
@@ -16392,7 +16923,6 @@ namespace epos {
 
 			return;
 		}
-
 		#endregion
 		#region state36 password for till open
 		private void processstate_36(stateevents eventtype, string eventname, int eventtag, string eventdata) {
@@ -16617,8 +17147,13 @@ namespace epos {
 					processstate_39(stateevents.textboxcret,"NOCASCADE",eventtag,tb1[0].Text);
 					return;
 				}
-
-				if (eventdata == "CASCADE") {	// accept, but cascade
+				if (eventdata == "EB1")
+				{	// accept but change line values
+					processstate_39(stateevents.textboxcret, "EB1", eventtag, tb1[0].Text);
+					return;
+				}
+				if (eventdata == "CASCADE")
+				{	// accept, but cascade
 					processstate_39(stateevents.textboxcret,"CASCADE",eventtag,tb1[0].Text);
 					return;
 				}
@@ -16626,8 +17161,6 @@ namespace epos {
 					processstate_39(stateevents.textboxcret,"CASCADE",eventtag,tb1[0].Text);
 					return;
 				}
-
-
 
 				if ((eventdata == "CANCEL") || (eventdata == "ESC")) {  // cancel
 					outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal;
@@ -16650,7 +17183,6 @@ namespace epos {
 
 				}
 
-
 				if (eventdata == "ADJUST") {	// Alter total
 					txt = tb1[0].Text;
 
@@ -16660,7 +17192,8 @@ namespace epos {
 					try {
 						newdiscount = currentorder.TotVal - Decimal.Round(Convert.ToDecimal(txt),2);
 
-						if ((newdiscount >= 0) && (newdiscount < currentorder.TotVal)) {
+						if ((newdiscount >= 0) && (newdiscount < currentorder.TotVal))
+						{
 							int discres = checkdiscount(id,currentorder,-1,newdiscount,0.0M,(eventname == "STAFF"));
 							if (discres == 1) {	// sup reqd
 								ordDiscount = newdiscount;
@@ -16689,7 +17222,8 @@ namespace epos {
 							outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal;
 							this.m_item_val = outstanding.ToString("F02");
 						}
-						else {
+						else
+						{
 							changetext("L_HDG6",st1[15]);
 							hdg6waserror = true; beep();
 							return;
@@ -16719,7 +17253,8 @@ namespace epos {
 				else {
 					txt = eventdata;
 					try {
-						if ((txt.EndsWith("%")) || (percentagediscount == 1) || (eventname != "NOCASCADE")) {
+						if ((txt.EndsWith("%")) || (percentagediscount == 1) || (eventname != "NOCASCADE"))
+						{
 							txt = txt.Replace("%","");
 							newdiscount = Convert.ToDecimal(txt); // discount percentage
 							discperc = newdiscount;
@@ -16829,20 +17364,20 @@ namespace epos {
 								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 							else {
 //								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                txt = this.layoutcustsearch(
-                                                custsearchres.lns[idx].Customer,
-                                                custsearchres.lns[idx].Title.Trim() + " " +
-                                                custsearchres.lns[idx].Initials.Trim(),
-                                                custsearchres.lns[idx].Surname.Trim(),
-                                                custsearchres.lns[idx].PostCode,
-                                                custsearchres.lns[idx].Address,
-                                                custsearchres.lns[idx].CompanyName,
-                                                custsearchres.lns[idx].Phone,
-                                                custsearchres.lns[idx].EmailAddress,
-                                                custsearchres.lns[idx].City,
-                                                custsearchres.lns[idx].TradeAccount,
-                                                custsearchres.lns[idx].Medical);
-                            }
+								txt = this.layoutcustsearch(
+												custsearchres.lns[idx].Customer,
+												custsearchres.lns[idx].Title.Trim() + " " +
+												custsearchres.lns[idx].Initials.Trim(),
+												custsearchres.lns[idx].Surname.Trim(),
+												custsearchres.lns[idx].PostCode,
+												custsearchres.lns[idx].Address,
+												custsearchres.lns[idx].CompanyName,
+												custsearchres.lns[idx].Phone,
+												custsearchres.lns[idx].EmailAddress,
+												custsearchres.lns[idx].City,
+												custsearchres.lns[idx].TradeAccount,
+												custsearchres.lns[idx].Medical);
+							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
 							lb1[2].Items.Add(txt);
@@ -16889,20 +17424,20 @@ namespace epos {
 								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 							else {
 //								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                txt = this.layoutcustsearch(
-                                                custsearchres.lns[idx].Customer,
-                                                custsearchres.lns[idx].Title.Trim() + " " +
-                                                custsearchres.lns[idx].Initials.Trim(),
-                                                custsearchres.lns[idx].Surname.Trim(),
-                                                custsearchres.lns[idx].PostCode,
-                                                custsearchres.lns[idx].Address,
-                                                custsearchres.lns[idx].CompanyName,
-                                                custsearchres.lns[idx].Phone,
-                                                custsearchres.lns[idx].EmailAddress,
-                                                custsearchres.lns[idx].City,
-                                                custsearchres.lns[idx].TradeAccount,
-                                                custsearchres.lns[idx].Medical);
-                            }
+								txt = this.layoutcustsearch(
+												custsearchres.lns[idx].Customer,
+												custsearchres.lns[idx].Title.Trim() + " " +
+												custsearchres.lns[idx].Initials.Trim(),
+												custsearchres.lns[idx].Surname.Trim(),
+												custsearchres.lns[idx].PostCode,
+												custsearchres.lns[idx].Address,
+												custsearchres.lns[idx].CompanyName,
+												custsearchres.lns[idx].Phone,
+												custsearchres.lns[idx].EmailAddress,
+												custsearchres.lns[idx].City,
+												custsearchres.lns[idx].TradeAccount,
+												custsearchres.lns[idx].Medical);
+							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
 							lb1[2].Items.Add(txt);
@@ -16952,20 +17487,20 @@ namespace epos {
 							txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 						else {
 //							txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                            txt = this.layoutcustsearch(
-                                            custsearchres.lns[idx].Customer,
-                                            custsearchres.lns[idx].Title.Trim() + " " +
-                                            custsearchres.lns[idx].Initials.Trim(),
-                                            custsearchres.lns[idx].Surname.Trim(),
-                                            custsearchres.lns[idx].PostCode,
-                                            custsearchres.lns[idx].Address,
-                                            custsearchres.lns[idx].CompanyName,
-                                            custsearchres.lns[idx].Phone,
-                                            custsearchres.lns[idx].EmailAddress,
-                                            custsearchres.lns[idx].City,
-                                            custsearchres.lns[idx].TradeAccount,
-                                            custsearchres.lns[idx].Medical);
-                        }
+							txt = this.layoutcustsearch(
+											custsearchres.lns[idx].Customer,
+											custsearchres.lns[idx].Title.Trim() + " " +
+											custsearchres.lns[idx].Initials.Trim(),
+											custsearchres.lns[idx].Surname.Trim(),
+											custsearchres.lns[idx].PostCode,
+											custsearchres.lns[idx].Address,
+											custsearchres.lns[idx].CompanyName,
+											custsearchres.lns[idx].Phone,
+											custsearchres.lns[idx].EmailAddress,
+											custsearchres.lns[idx].City,
+											custsearchres.lns[idx].TradeAccount,
+											custsearchres.lns[idx].Medical);
+						}
 						if (custsearchres.lns[idx].NoteInd)
 							txt += " *";
 						lb1[2].Items.Add(txt);
@@ -17074,20 +17609,20 @@ namespace epos {
 								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 							else {
 //								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                txt = this.layoutcustsearch(
-                                                custsearchres.lns[idx].Customer,
-                                                custsearchres.lns[idx].Title.Trim() + " " +
-                                                custsearchres.lns[idx].Initials.Trim(),
-                                                custsearchres.lns[idx].Surname.Trim(),
-                                                custsearchres.lns[idx].PostCode,
-                                                custsearchres.lns[idx].Address,
-                                                custsearchres.lns[idx].CompanyName,
-                                                custsearchres.lns[idx].Phone,
-                                                custsearchres.lns[idx].EmailAddress,
-                                                custsearchres.lns[idx].City,
-                                                custsearchres.lns[idx].TradeAccount,
-                                                custsearchres.lns[idx].Medical);
-                            }
+								txt = this.layoutcustsearch(
+												custsearchres.lns[idx].Customer,
+												custsearchres.lns[idx].Title.Trim() + " " +
+												custsearchres.lns[idx].Initials.Trim(),
+												custsearchres.lns[idx].Surname.Trim(),
+												custsearchres.lns[idx].PostCode,
+												custsearchres.lns[idx].Address,
+												custsearchres.lns[idx].CompanyName,
+												custsearchres.lns[idx].Phone,
+												custsearchres.lns[idx].EmailAddress,
+												custsearchres.lns[idx].City,
+												custsearchres.lns[idx].TradeAccount,
+												custsearchres.lns[idx].Medical);
+							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
 							lb1[2].Items.Add(txt);
@@ -17134,20 +17669,20 @@ namespace epos {
 								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 							else {
 //								txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                                txt = this.layoutcustsearch(
-                                                custsearchres.lns[idx].Customer,
-                                                custsearchres.lns[idx].Title.Trim() + " " +
-                                                custsearchres.lns[idx].Initials.Trim(),
-                                                custsearchres.lns[idx].Surname.Trim(),
-                                                custsearchres.lns[idx].PostCode,
-                                                custsearchres.lns[idx].Address,
-                                                custsearchres.lns[idx].CompanyName,
-                                                custsearchres.lns[idx].Phone,
-                                                custsearchres.lns[idx].EmailAddress,
-                                                custsearchres.lns[idx].City,
-                                                custsearchres.lns[idx].TradeAccount,
-                                                custsearchres.lns[idx].Medical);
-                            }
+								txt = this.layoutcustsearch(
+												custsearchres.lns[idx].Customer,
+												custsearchres.lns[idx].Title.Trim() + " " +
+												custsearchres.lns[idx].Initials.Trim(),
+												custsearchres.lns[idx].Surname.Trim(),
+												custsearchres.lns[idx].PostCode,
+												custsearchres.lns[idx].Address,
+												custsearchres.lns[idx].CompanyName,
+												custsearchres.lns[idx].Phone,
+												custsearchres.lns[idx].EmailAddress,
+												custsearchres.lns[idx].City,
+												custsearchres.lns[idx].TradeAccount,
+												custsearchres.lns[idx].Medical);
+							}
 							if (custsearchres.lns[idx].NoteInd)
 								txt += " *";
 							lb1[2].Items.Add(txt);
@@ -17205,20 +17740,20 @@ namespace epos {
 							txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].CompanyName,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
 						else {
 //							txt = pad(custsearchres.lns[idx].Customer,12) + " " + pad(custsearchres.lns[idx].Surname,20) + " " + pad(custsearchres.lns[idx].PostCode,8);
-                            txt = this.layoutcustsearch(
-                                            custsearchres.lns[idx].Customer,
-                                            custsearchres.lns[idx].Title.Trim() + " " +
-                                            custsearchres.lns[idx].Initials.Trim(),
-                                            custsearchres.lns[idx].Surname.Trim(),
-                                            custsearchres.lns[idx].PostCode,
-                                            custsearchres.lns[idx].Address,
-                                            custsearchres.lns[idx].CompanyName,
-                                            custsearchres.lns[idx].Phone,
-                                            custsearchres.lns[idx].EmailAddress,
-                                            custsearchres.lns[idx].City,
-                                            custsearchres.lns[idx].TradeAccount,
-                                            custsearchres.lns[idx].Medical);
-                        }
+							txt = this.layoutcustsearch(
+											custsearchres.lns[idx].Customer,
+											custsearchres.lns[idx].Title.Trim() + " " +
+											custsearchres.lns[idx].Initials.Trim(),
+											custsearchres.lns[idx].Surname.Trim(),
+											custsearchres.lns[idx].PostCode,
+											custsearchres.lns[idx].Address,
+											custsearchres.lns[idx].CompanyName,
+											custsearchres.lns[idx].Phone,
+											custsearchres.lns[idx].EmailAddress,
+											custsearchres.lns[idx].City,
+											custsearchres.lns[idx].TradeAccount,
+											custsearchres.lns[idx].Medical);
+						}
 						if (custsearchres.lns[idx].NoteInd)
 							txt += " *";
 						lb1[2].Items.Add(txt);
@@ -17795,9 +18330,6 @@ namespace epos {
 					outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal;
 					this.m_item_val = outstanding.ToString("F02");
 
-
-
-
 					newstate(35);
 					changetext("LF4",st1[19]);
 					enablecontrol("BF4",true);
@@ -18177,7 +18709,8 @@ namespace epos {
 					currentorder.PriceSource = currentcust.Source;
 					currentorder.SourceDescr = txt;
 					visiblecontrol("LC0A",false);
-					if ((currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) {
+					if (( (currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) && showvoucherinfo)
+					{
 						this.m_calling_state = 51;
 						newstate(68);
 						fillvouchers(currentcust);
@@ -18651,7 +19184,6 @@ namespace epos {
 
 			return;
 		}
-
 		#endregion
 		#region state58 Get Account PO Number
 		private void processstate_58(stateevents eventtype, string eventname, int eventtag, string eventdata) {
@@ -18911,9 +19443,6 @@ namespace epos {
 						}
 					}
 
-
-
-
 					changetext("L_HDG6","Choose Item(s)");
 					tb1[0].Enabled = false;
 					tb1[0].Text = "";
@@ -18965,7 +19494,9 @@ namespace epos {
 					newstate(52);
 					return;
 				}
-				if (eventdata == "SCAN") {
+
+				if (eventdata == "SCAN")
+				{
 					currlineisnegative = true;
 					refund = false;
 					if (currentorder.NumLines > 0)
@@ -18974,8 +19505,14 @@ namespace epos {
 						newstate(emptyorder);
 					return;
 				}
-
-
+				// scan when is 60 return state: SJL
+				if (eventdata == "SCANRETURN")
+				{
+					currlineisnegative = true;
+					inReturnScanMode = true;
+					refund = false;
+					processstate_60(stateevents.functionkey, eventname, eventtag, "OK");
+				}
 
 				if (eventdata == "OK") {		// either YES (for return-to-stock) or CONTINUE
 					//					ListBox.SelectedIndexCollection sc = lb1[2].SelectedIndices;
@@ -19014,7 +19551,6 @@ namespace epos {
 						searchres.lns[lbidx].Stock = true;
 						return;
 					}
-
 
 					// at this point - not return to stock but 'CONTINUE' function
 
@@ -19076,27 +19612,20 @@ namespace epos {
 								retorder.NumLines = retorder.NumLines + 1;
 
 								//		recalcmultibuy(id,currentcust,retorder,currentpart.ProdGroup,false,false);
-
-
-
-
-
-
-							} else {
+							}
+							else
+							{
 								if (id.ErrorMessage != "")
 									changetext("L_HDG6",id.ErrorMessage);
 								else
 									changetext("L_HDG6","EPOS Error 6");
 								hdg6waserror = true; beep();
 								return;
-							}
-							
+							}							
 						}
 					}
 
-
 					decimal newdiscount = recalcmultibuy(id,currentcust,retord,"",false,true);
-
 
 					decimal discount = olddiscount - newdiscount;
 
@@ -19171,7 +19700,9 @@ namespace epos {
 					} else if (retorder.NumLines == 0) {
 						newstate(3);
 						return;
-					} else {
+					}
+					else
+					{
 
 						changetext("L_HDG7",currentpart.PartNumber);
 						changetext("L_HDG8",currentpart.Description);
@@ -19182,7 +19713,12 @@ namespace epos {
 						if (currlineisnegative) {
 							newstate(3);
 							//			newstate(61);
-							currlineisnegative = false;
+
+							//slewis check before commit //TODO:
+							// if SCAN then next item scaned is a return.
+							if (inReturnScanMode == false)
+								currlineisnegative = false;
+							inReturnScanMode = false;
 							return;
 						}
 					}
@@ -19259,24 +19795,30 @@ namespace epos {
 					searchres.lns[lbidx].Stock = false;
 				}
 
-				if (eventdata == "SELECT") {
+				if (eventdata == "SELECT")
+				{
 					idx = lb1[2].SelectedIndex;
-					if (idx == -1) {
+					if (idx == -1)
+					{
 						return;
 					}
 
-					if ((idx % 2) == 1) {
+					if ((idx % 2) == 1)
+					{
 						return;
 					}
 
 					int lbidx = idx / 2;
 
-					if (retord.lns[lbidx].MasterLine > -1) {
+					if (retord.lns[lbidx].MasterLine > -1)
+					{
 						return;
 					}
 					searchres.lns[lbidx].Select = !searchres.lns[lbidx].Select;
-					for (int idy = 0; idy < searchres.NumLines; idy++) {
-						if (retord.lns[idy].MasterLine == lbidx) {
+					for (int idy = 0; idy < searchres.NumLines; idy++)
+					{
+						if (retord.lns[idy].MasterLine == lbidx)
+						{
 							searchres.lns[idy].Select = searchres.lns[lbidx].Select; 
 						}
 					}
@@ -19285,23 +19827,27 @@ namespace epos {
 					int ll = lbtxt.Length;
 					string term;
 					bool returned = false;
-					if (searchres.lns[lbidx].Select) {
+					if (searchres.lns[lbidx].Select)
+					{
 						term = "*";
 						returned = true;
 					}
 					else
 						term = "R";
+
 					lbtxt = lbtxt.Substring(0,ll-1) + term;
 
 					lb1[2].Items[idx] = lbtxt;
 
-
-					for (int idy = 0; idy < searchres.NumLines; idy++) {
-						if (retord.lns[idy].MasterLine == lbidx) {
+					for (int idy = 0; idy < searchres.NumLines; idy++)
+					{
+						if (retord.lns[idy].MasterLine == lbidx)
+						{
 							string lbtxt2 = lb1[2].Items[idy * 2].ToString();
 							int ll2 = lbtxt2.Length;
 							string term2;
-							if (searchres.lns[lbidx].Select) {
+							if (searchres.lns[lbidx].Select)
+							{
 								term2 = "*";
 							}
 							else
@@ -19309,12 +19855,11 @@ namespace epos {
 							lbtxt2 = lbtxt2.Substring(0,ll2-1) + term2;
 
 							lb1[2].Items[idy * 2] = lbtxt2;
-
 						}
 					}
 
-
-					if (returned) {
+					if (returned)
+					{
 						changetext("LF1","Yes");
 						changetext("LF2","No");
 						changetext("LF3","");
@@ -19508,6 +20053,10 @@ namespace epos {
 		#endregion
 		#region state62 Get Delivery Options
 		private void processstate_62(stateevents eventtype, string eventname, int eventtag, string eventdata) {
+			int erc;
+			string txt;
+			int idx;
+
 			if (eventtype == stateevents.functionkey) {
 				if (eventdata == "CANCEL") {
 					newstate(22);
@@ -19520,11 +20069,55 @@ namespace epos {
 					processstate_22(stateevents.functionkey, "", 0, "TAKEGOODS");
 					return;
 				}
-				if (eventdata == "MAILORDER") {	// Mail Order
+				if (eventdata == "MAILORDER") { // Mail Order
+					searchcust = new custdata();
+					searchcust.Customer = "";
+					searchcust.PostCode = formatpostcode(eventdata, true);
+					searchcust.Order = "";
+					changetext("L_HDG6", "");
+					lb1[5].Items.Clear();
+					custsearchres.NumLines = 0;
+					//searchpopup(true);
+					erc = elucid.getcust_addresses(id, currentcust, custsearchres);
+					//searchpopup(false);
+
+					if (erc == 0)
+					{
+						if (custsearchres.NumLines > 0)
+						{
+							idx = 0;
+						}
+						for (idx = 0; idx < custsearchres.NumLines; idx++)
+						{
+							//txt = this.layoutaddresssearch(custsearchres.lns[idx].Address, custsearchres.lns[idx].PostCode, custsearchres.lns[idx].City) + " ";
+							txt = this.layoutaddresssearch(custsearchres.lns[idx].DelAddress, custsearchres.lns[idx].DelPostCode, custsearchres.lns[idx].DelCity) + " ";
+							lb1[5].Items.Add(txt);
+						}
+					}
+					else
+					{
+						if (id.ErrorMessage != "")
+						{
+							lb1[5].Items.Add(id.ErrorMessage);
+							changetext("L_HDG6", id.ErrorMessage);
+							hdg6waserror = true; beep();
+						}
+						else
+						{
+							changetext("L_HDG6", "EPOS Error 19");
+							hdg6waserror = true; beep();
+						}
+					}
+					this.m_calling_state = 62;
+					newstate(72);// Retrieve Addresses From Customer
+					return;
+					//*/
+					/* // Before POS19 (getaddresses) was used
 					currentorder.SalesType = 2;
 					currentorder.SalesTypeDesc = gettext("LF3");
 					processstate_22(stateevents.functionkey, "", 0, "TAKEGOODS");
 					return;
+					//*/
 				}
 				if (eventdata == "COLLECT") {	// Collect
 					currentorder.SalesType = 3;
@@ -19773,7 +20366,6 @@ namespace epos {
 
 						int res = elucid.getxz_report(id, out rep);
 
-
 						if (res == 0) {
 							printzreport(id,rep,id.NosaleType=="ZREPORT");
 							if (id.NosaleType == "ZREPORT") {
@@ -19891,7 +20483,7 @@ namespace epos {
 
 			if (eventtype == stateevents.functionkey) {
 				if (eventdata == "OK")
-                {	
+				{	
 					this.visiblecontrol("LB5",false);
 
 					if (this.m_calling_state == 10) {	// return to tender (apologies to E Presley)
@@ -19922,7 +20514,7 @@ namespace epos {
 					if (this.m_calling_state == 33) {
 						newstate(33);
 						gotcustomer = true;
-						changetext("EC_TITLE",currentcust.DelTitle);
+						changetext("EC_TITLE",returnAsTitleCase(currentcust.DelTitle));
 						changetext("EC_INITIALS",currentcust.DelInitials);
 						changetext("EC_SURNAME",currentcust.DelSurname);
 						changetext("EC_ADDRESS",currentcust.DelAddress);
@@ -19931,10 +20523,10 @@ namespace epos {
 						changetext("EC_POST_CODE",currentcust.DelPostCode);
 						changecomb("EC_COUNTRY",currentcust.DelCountryCode);
 						changetext("EC_PHONE_DAY",currentcust.DelPhone);
-                        changetext("EC_MOBILE", currentcust.DelMobile);
+						changetext("EC_MOBILE", currentcust.DelMobile);
 						changetext("EC_EMAIL_ADDRESS",currentcust.DelEmailAddress);
-                        //changetext("EC_COMPANY_NAME", currentcust.DelCompanyName);
-                        return;
+						//changetext("EC_COMPANY_NAME", currentcust.DelCompanyName);
+						return;
 					}
 
 					if (this.m_calling_state == 51) {
@@ -19983,7 +20575,8 @@ namespace epos {
 					}
 					return;
 				}
-				if (eventdata == "DELIVERYOPTIONS") {
+				if (eventdata == "DELIVERYOPTIONS")
+				{
 					// go to state 71 to ask for delivery options
 					outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal;
 					this.m_item_val = outstanding.ToString("F02");
@@ -20060,7 +20653,6 @@ namespace epos {
 				}
 
 			}
-
 
 			return;
 		}
@@ -20227,11 +20819,16 @@ namespace epos {
 	}
 			return;
 		}
-
 		#endregion
 		#region state71 Get Delivery Options (Cust already entered)
 		private void processstate_71(stateevents eventtype, string eventname, int eventtag, string eventdata) {
-			if (eventtype == stateevents.functionkey) {
+
+			int erc;
+			string txt;
+			int idx;
+
+			if (eventtype == stateevents.functionkey)
+			{
 				if (eventdata == "CANCEL") {
 					newstate(10);
 					return;
@@ -20243,11 +20840,55 @@ namespace epos {
 					processstate_22(stateevents.functionkey, "", 0, "TAKEGOODS");
 					return;
 				}
-				if (eventdata == "MAILORDER") {	// Mail Order
+				if (eventdata == "MAILORDER") // Mail Order
+				{	
+					searchcust = new custdata();
+					searchcust.Customer = "";
+					searchcust.PostCode = formatpostcode(eventdata, true);
+					searchcust.Order = "";
+					changetext("L_HDG6", "");
+					lb1[5].Items.Clear();
+					custsearchres.NumLines = 0;
+					//	searchpopup(true);
+					erc = elucid.getcust_addresses(id, currentcust, custsearchres);
+					//	searchpopup(false);
+
+					if (erc == 0)
+					{
+						lb1[5].Items.Clear();
+
+						for (idx = 0; idx < custsearchres.NumLines; idx++)
+						{
+						//	txt = this.layoutaddresssearch(custsearchres.lns[idx].Address, custsearchres.lns[idx].PostCode, custsearchres.lns[idx].City) + " ";
+							txt = this.layoutaddresssearch(custsearchres.lns[idx].DelAddress, custsearchres.lns[idx].DelPostCode, custsearchres.lns[idx].DelCity) + " ";
+							lb1[5].Items.Add(txt);
+						}
+					}
+					else
+					{
+						if (id.ErrorMessage != "")
+						{
+							lb1[5].Items.Add(id.ErrorMessage);
+							changetext("L_HDG6", id.ErrorMessage);
+							hdg6waserror = true; beep();
+						}
+						else
+						{
+							changetext("L_HDG6", "EPOS Error 19");
+							hdg6waserror = true; beep();
+						}
+					}
+					this.m_calling_state = 71;
+					newstate(72);
+					return;
+
+					/*
+					// replaced by state 72: sjl 08/08/2008
 					currentorder.SalesType = 2;
 					currentorder.SalesTypeDesc = gettext("LF3");
 					processstate_22(stateevents.functionkey, "", 0, "TAKEGOODS");
 					return;
+					//*/
 				}
 				if (eventdata == "COLLECT") {	// Collect
 					currentorder.SalesType = 3;
@@ -20258,12 +20899,315 @@ namespace epos {
 			}
 		}
 		#endregion
-		#endregion
+		#region state72 Get List of Addresses for customer
+		private void processstate_72(stateevents eventtype, string eventname, int eventtag, string eventdata)
+		{
+			if (eventtype == stateevents.functionkey)
+			{
+				if (eventdata == "USE")
+				{
+					int curridx = lb1[5].SelectedIndex;
+
+					if (curridx > -1)
+					{
+						string addressRef = custsearchres.lns[curridx].CustRef;
+
+						searchcust.CustRef = custsearchres.lns[curridx].CustRef;
+
+						searchcust.Customer = custsearchres.lns[curridx].Customer;
+						searchcust.Title = custsearchres.lns[curridx].Title;
+						searchcust.Initials = custsearchres.lns[curridx].Initials;
+						searchcust.Surname = custsearchres.lns[curridx].Surname;
+
+						searchcust.Address = custsearchres.lns[curridx].Address;
+						searchcust.City = custsearchres.lns[curridx].City;
+						searchcust.County = custsearchres.lns[curridx].County;
+						searchcust.PostCode = custsearchres.lns[curridx].PostCode;
+						searchcust.CountryCode = custsearchres.lns[curridx].CountryCode;
+						searchcust.CompanyName = custsearchres.lns[curridx].CompanyName;
+
+						currentorder.DelMethod = id.DeliveryMethod;
+
+						if (addressRef != "MAIN")
+						{
+							searchcust.CustRef = addressRef;
+							searchcust.DelTitle = custsearchres.lns[curridx].DelTitle;
+							searchcust.DelInitials = custsearchres.lns[curridx].DelInitials;
+							searchcust.DelSurname = custsearchres.lns[curridx].DelSurname;
+
+							searchcust.DelAddress = custsearchres.lns[curridx].DelAddress;
+							searchcust.DelCity = custsearchres.lns[curridx].DelCity;
+							searchcust.DelCounty = custsearchres.lns[curridx].DelCounty;
+							searchcust.DelPostCode = custsearchres.lns[curridx].DelPostCode;
+							searchcust.DelCountryCode = custsearchres.lns[curridx].DelCountryCode;
+							searchcust.DelCompanyName = custsearchres.lns[curridx].DelCompanyName;
+						}
+						else
+							searchcust.CustRef = "MAIN";
+
+
+						currentorder.SalesType = 2;
+						currentorder.SalesTypeDesc = gettext("LF1");
+						processstate_22(stateevents.functionkey, "", 0, "TAKEGOODS");
+						return;
+					}
+				}
+				// Enter new address
+				if (eventdata == "NEW")
+				{
+					newcust = new custdata();
+					gotcustomer = false;
+					newstate(73); // enter new address for 
+					//changetext("L_CUST", "");
+
+					currentcust.Title = returnAsTitleCase((currentcust.Title));
+					changetext("EC_TITLE", currentcust.Title);
+					changetext("EC_INITIALS", currentcust.Initials);
+					changetext("EC_SURNAME", currentcust.Surname);
+					changetext("EC_ADDRESS", "");
+					changetext("EC_CITY", "");
+					changetext("EC_COUNTY", "");
+					changetext("EC_POST_CODE", "");
+					changecomb("EC_COUNTRY", id.DefCountry);
+					changetext("EC_COMPANY", "");
+					focuscontrol("EC_ADDRESS");
+					return;
+				}
+				if ((eventdata == "CANCEL") || (eventdata == "ESC"))
+				{
+					newstate(this.m_calling_state);
+					return;
+				}
+			}
+		}
+		#endregion // 72
+		#region state73 Enter new customer address
+		private void processstate_73(stateevents eventtype, string eventname, int eventtag, string eventdata)
+		{
+			int erc;
+			if (eventtype == stateevents.functionkey)
+			{
+				if (eventdata == "USE")
+				{
+					searchcust.CustRef = "NEW";
+					searchcust.Customer = currentcust.Customer;
+					searchcust.Title = returnAsTitleCase((currentcust.Title));
+					searchcust.Initials = currentcust.Initials;
+					searchcust.Surname = currentcust.Surname;
+
+					searchcust.Address = currentcust.Address;
+					searchcust.City = currentcust.City;
+					searchcust.County = currentcust.County;
+					searchcust.PostCode = currentcust.PostCode;
+					searchcust.CountryCode = currentcust.CountryCode;
+					searchcust.CompanyName = currentcust.CompanyName;
+
+					searchcust.DelAddress = gettext("EC_ADDRESS");
+					searchcust.DelCity = gettext("EC_CITY");
+					searchcust.DelCounty = gettext("EC_COUNTY");
+					searchcust.DelPostCode = gettext("EC_POST_CODE");
+					searchcust.DelCountryCode = gettext("EC_COUNTRY");
+					erc = searchcust.DelCountryCode.IndexOf(" ");
+					if (erc > 0)
+						searchcust.DelCountryCode = searchcust.DelCountryCode.Substring(0, erc);
+					searchcust.DelCompanyName = gettext("EC_COMPANY_NAME");
+
+					searchcust.DelTitle = currentcust.Title;
+					searchcust.DelInitials = currentcust.Initials;
+					searchcust.DelSurname = currentcust.Surname;
+
+					currentorder.SalesType = 2;
+					currentorder.SalesTypeDesc = gettext("LF3");
+					processstate_22(stateevents.functionkey, "", 0, "TAKEGOODS");
+					return;
+				}
+				if ((eventdata == "CANCEL") || (eventdata == "ESC"))
+				{
+					newstate(72);
+					return;
+				}
+				if (eventdata == "BACKTAB")
+				{
+					if (this.ActiveControl.Name == "EC_ADDRESS")
+					{
+						focuscontrol("EC_COMPANY_NAME");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_CITY")
+					{
+						focuscontrol("EC_ADDRESS");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COUNTY")
+					{
+						focuscontrol("EC_CITY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_POST_CODE")
+					{
+						focuscontrol("EC_COUNTY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COUNTRY")
+					{
+						focuscontrol("EC_POST_CODE");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COMPANY_NAME")
+					{
+						focuscontrol("EC_COUNTRY");
+						return;
+					}
+
+					if ((gettext("EC_SURNAME") != "") &&
+						//(gettext("EC_COUNTY") != "") && no county needed!
+						(gettext("EC_POST_CODE") != "") &&
+						(gettext("EC_COUNTRY") != "") &&
+						(gettext("EC_CITY") != "") &&
+						(gettext("EC_ADDRESS") != ""))
+					{
+						enablecontrol("BF1",true);
+					}
+					else
+					{
+						enablecontrol("BF1",false);
+					}
+				}
+				if (eventdata == "TAB")
+				{
+					if (this.ActiveControl.Name == "EC_ADDRESS")
+					{
+						focuscontrol("EC_CITY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_CITY")
+					{
+						focuscontrol("EC_COUNTY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COUNTY")
+					{
+						focuscontrol("EC_POST_CODE");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_POST_CODE")
+					{
+						focuscontrol("EC_COUNTRY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COUNTRY")
+					{
+						focuscontrol("EC_COMPANY_NAME");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COMPANY_NAME")
+					{
+						focuscontrol("EC_ADDRESS");
+						return;
+					}
+
+					if ((gettext("EC_SURNAME") != "") &&
+						//(gettext("EC_COUNTY") != "") &&
+						(gettext("EC_POST_CODE") != "") &&
+						(gettext("EC_COUNTRY") != "") &&
+						(gettext("EC_CITY") != "") &&
+						(gettext("EC_ADDRESS") != ""))
+					{
+						enablecontrol("BF1",true);
+					}
+					else
+					{
+						enablecontrol("BF1",false);
+					}
+				}
+			}
+			if (eventtype == stateevents.textboxcret)
+			{
+				if (eventname == "EC_ADDRESS")
+				{
+					focuscontrol("EC_CITY");
+					return;
+				}
+				if (eventname == "EC_CITY")
+				{
+					focuscontrol("EC_COUNTY");
+					return;
+				}
+				if (eventname == "EC_COUNTY")
+				{
+					focuscontrol("EC_POST_CODE");
+					return;
+				}
+				if (eventname == "EC_POST_CODE")
+				{
+					focuscontrol("EC_COUNTRY");
+					return;
+				}
+				if (eventname == "EC_COUNTRY")
+				{
+					focuscontrol("EC_COMPANY_NAME");
+					return;
+				}
+				if (eventname == "EC_COMPANY_NAME")
+				{
+					focuscontrol("EC_ADDRESS");
+					return;
+				}
+
+				if ((gettext("EC_SURNAME") != "") &&
+					//(gettext("EC_COUNTY") != "") &&
+					(gettext("EC_POST_CODE") != "") &&
+					(gettext("EC_COUNTRY") != "") &&
+					(gettext("EC_CITY") != "") &&
+					(gettext("EC_ADDRESS") != ""))
+				{
+					enablecontrol("BF1", true);
+				}
+				else
+				{
+					enablecontrol("BF1", false);
+				}
+			}
+			if (eventtype == stateevents.textboxleave)
+			{
+				if ((gettext("EC_SURNAME") != "") &&
+					//(gettext("EC_COUNTY") != "") &&
+					(gettext("EC_POST_CODE") != "") &&
+					(gettext("EC_COUNTRY") != "") &&
+					(gettext("EC_CITY") != "") &&
+					(gettext("EC_ADDRESS") != ""))
+				{
+					enablecontrol("BF1",true);
+				}
+				else
+				{
+					enablecontrol("BF1",false);
+				}
+			}
+
+			return;
+		}
+		#endregion // 73
+		#region state74 Show No Image but desciption
+		private void processstate_74(stateevents eventtype, string eventname, int eventtag, string eventdata)
+		{
+			if (eventtype == stateevents.functionkey)
+			{
+				if ((eventdata == "BACK") || (eventdata == "ESC"))
+				{
+					visiblecontrol("L_FULLDESC2", false);
+					newstate(m_prev_state);
+					return;
+				}
+			}
+			return;
+		}
+		#endregion // 74
+		#endregion // stateprocessors
 
 		#region creditcard
 		private static uint iocntlCheck(Socket s, int code)
 		{
-      
 			// Set up the input and output byte arrays.
 			byte[] inValue = BitConverter.GetBytes(0);
 			byte[] outValue = BitConverter.GetBytes(0);
@@ -20504,10 +21448,7 @@ namespace epos {
 						processingcreditcard = false;
 						return -999;
 					}
-
-
 				}
-
 
 				bytes = (int)iocntlCheck(s,  fionRead);
 
@@ -20558,7 +21499,6 @@ namespace epos {
 				}
 				debugccmsg("Data:" + strRetPage);
 
-      
 				// Retrieve the number of bytes available to be read.
 				bytes = (int)iocntlCheck(s,  fionRead);
 				debugccmsg("More data available:" + bytes.ToString());
@@ -20594,7 +21534,7 @@ namespace epos {
 				debugcc("CC=(" + Get + ")->(" + strRetPage +")");
 
 			} // End of the try block.
-    
+	
 			catch(Exception e)
 			{
 				debugccmsg("Exception:" + e.Message);
@@ -20769,7 +21709,7 @@ namespace epos {
 				if (debuglevel > 7)			// beware - this has cc data in clear, only use for initial debugging
 					debugccmsg("Data:" + strRetPage);
 
-      
+	  
 				// Retrieve the number of bytes available to be read.
 				bytes = (int)iocntlCheck(s,  fionRead);
 				debugccmsg("More data available:" + bytes.ToString());
@@ -20786,7 +21726,7 @@ namespace epos {
 
 				strRetPage = strRetPage.Replace("\n","\r\n");
 
-    
+	
 				idx = strRetPage.IndexOf("\r\n5=");			// overwrite cc data with *** for debug file
 				if (idx > -1) {
 					int cpos = strRetPage.IndexOf("\r",idx+1);
@@ -20800,7 +21740,7 @@ namespace epos {
 				debugcc("CC=(" + Get + ")->(" + strRetPage +")");
 
 			} // End of the try block.
-    
+	
 			catch(Exception e) {
 				debugccmsg("Exception:" + e.Message);
 				debugcc("CC Exception caught=(" + Get + ")->(" + strRetPage +")");
@@ -20903,9 +21843,10 @@ namespace epos {
 
 			return  idx;
 		}
-		#endregion
+		#endregion // creditcard
 
 		#region print
+
 		private int printandwraplines(IntPtr hdc, int x, int y, string txt, int incr) {
 			string strTemp;
 
@@ -20939,12 +21880,7 @@ namespace epos {
 						}
 					}
 				}
-
-
 			}
-
-
-
 			return yoffset;
 
 		}
@@ -20973,7 +21909,15 @@ namespace epos {
 					signature = true;
 				}
 			}
-			if (printorder.AccountVal != 0.00M) {
+			if (anyOfItemsAreReturns(ord))
+			{
+				if (printsignaturereturn)
+				{
+					signature = true;
+				}
+			}
+			if (printorder.AccountVal != 0.00M)
+			{
 				if (reprintaccounts) {
 					reprintit = true;
 				}
@@ -20982,7 +21926,8 @@ namespace epos {
 				}
 			}
 
-			if (reprintreturns) {
+			if (reprintreturns)
+			{
 				for (int idx = 0; idx < printorder.NumLines; idx++) {
 					if (printorder.lns[idx].Qty < 0) {
 						reprintit = true;
@@ -20991,8 +21936,6 @@ namespace epos {
 				}
 			}
 
-		//	signature = true;
-
 			printit(false,false,"",signature);
 
 			if (reprintit) {
@@ -21000,552 +21943,100 @@ namespace epos {
 			}
 		}
 
-		private void printitold(bool reprint, bool layaway, string lName, bool signature)
+		private bool anyOfItemsAreReturns( orderdata order )
 		{
-			int idx;
-			string line = null;
-			int yoffset = 0;
-			decimal tmp;
-			int lineincr = 25;
-			UInt32 SRCCOPY  = 0x00CC0020;
-			int RASTERCAPS = 38 ;
-			int LOGPIXELSX = 88;
-			int erc4;
-			bool erc5;
-			Bitmap logo;
-			IntPtr HBit = (IntPtr)0;
-			IntPtr hcdc = (IntPtr)0;
-
-			lock (lockit) {
-
-
-
-				// if we need to logout after an order, then set the variable emptyorder to 0 (the logout state)
-				// else set it back to 2 (THe new order state)
-				//
-
-				if ((reprint) || (layaway))  {
-					emptyorder = 2;		// reset state variable to go to main order entry state
-				} else {
-					emptyorder = SaleLogout ? 0 : 2;		// reset state variable to go to appropriate order entry state
-				}
-
-				if (printlogo != "") {
-
-					logo = new Bitmap(printlogo);
-
-					HBit = logo.GetHbitmap(Color.Black);
-
-				}
-				else {
-					logo = new Bitmap(1,1);
-				}
-
-				IntPtr hfontControl = CreateFont(20,0,0,0,400,0,0,0,DEFAULT_CHARSET,OUT_DEVICE_PRECIS,CLIP_EMBEDDED,DEFAULT_QUALITY,FIXED_PITCH,printercontrolfont);
-				IntPtr hdc = CreateDC("WINSPOOL",printername,"",0);
-
-
-				int devcaps = GetDeviceCaps(hdc,RASTERCAPS);
-				int ppi = GetDeviceCaps(hdc,LOGPIXELSX);
-
-				lineincr = ppi / 10;
-
-				if (printerppi != 0) {
-					ppi = printerppi;
-					lineincr = printerlineincr;
-				}
-
-			
-				if (printlogo != "") {
-					hcdc = CreateCompatibleDC(hdc);
-
-					int ddd = SelectObject(hcdc,HBit);
-				}
-
-				int erc3 = StartDoc(hdc,0);
-
-				if ((reprint == false) && (layaway == false)) {
-					if (!printorder.TillOpened) {
-						if (cashdrawerport == 0) {
-							erc4 = SelectObject(hdc,hfontControl);
-							erc5 = TextOut(hdc,40,40,"A",1);
-						}
-						else {
-							opendrawer();
-						}
-						printorder.TillOpened = true;
+			try
+			{
+				for (int i = 0; i < 200; i++)
+				{
+					if (order.lns[i].LineNetValue < 0)
+					{
+						return true;
 					}
 				}
-
-				if (printlogo != "") {
-
-					bool ccc = StretchBlt(hdc,0,0,(ppi * logo.Width / logo.Height),ppi,hcdc,0,0,logo.Width,logo.Height,SRCCOPY);
-
-					yoffset = ppi;
-				}			
-				else {
-					erc4 = SelectObject(hdc,hfontControl);
-					erc5 = TextOut(hdc,0,0,"G",1);
-				}
-
-			
-
-				IntPtr hfontPrint = CreateFont((ppi/10),0,0,0,400,0,0,0,DEFAULT_CHARSET,OUT_DEVICE_PRECIS,CLIP_EMBEDDED,DEFAULT_QUALITY,FIXED_PITCH,printerfont);
-				erc4 = SelectObject(hdc,hfontPrint);
-
-
-				if (layaway) {
-					yoffset += 4 * lineincr;
-					line = "      L A Y A W A Y";
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset += 2 * lineincr;
-				}
-
-
-				yoffset += lineincr;
-				yoffset += lineincr;
-
-				if (addr1 != "") {
-					erc5 = TextOut(hdc,5,yoffset,addr1,addr1.Length);
-					yoffset += lineincr;
-				}
-				if (addr2 != "") {
-					erc5 = TextOut(hdc,5,yoffset,addr2,addr2.Length);
-					yoffset += lineincr;
-				}
-				if (addr3 != "") {
-					erc5 = TextOut(hdc,5,yoffset,addr3,addr3.Length);
-					yoffset += lineincr;
-				}
-				if (addr4 != "") {
-					erc5 = TextOut(hdc,5,yoffset,addr4,addr4.Length);
-					yoffset += lineincr;
-				}
-				if (addr5 != "") {
-					erc5 = TextOut(hdc,5,yoffset,addr5,addr5.Length);
-					yoffset += lineincr;
-				}
-				if (addr6 != "") {
-					erc5 = TextOut(hdc,5,yoffset,addr6,addr6.Length);
-					yoffset += lineincr;
-				}
-				if (addr7 != "") {
-					erc5 = TextOut(hdc,5,yoffset,addr7,addr7.Length);
-					yoffset += lineincr;
-				}
-
-				yoffset += lineincr * 2;	// 2 blank lines
-
-
-
-
-
-				//			line = pad("Item",8) + pad("Description",20) + rpad("Qty",4) + rpad("Value",8); 
-				//			erc5 = TextOut(hdc,5,60,line,line.Length);
-
-
-
-				decimal tot_vatable = 0.00M;
-				decimal tot_vatamount = 0.00M;
-				decimal vatable = 0.00M;
-				decimal vatamount = 0.00M;
-				decimal vatrate = 0.00M;
-				decimal linetotal = 0.00M;
-
-				for (idx = 0; idx < printorder.NumLines; idx++) {
-
-					line = "";
-
-					//vatable = printorder.lns[idx].LineNetValue;
-					//vatamount = printorder.lns[idx].LineTaxValue;
-					vatable = printorder.lns[idx].ActualNet;
-					vatamount = printorder.lns[idx].ActualVat;
-
-					//if (vatable != 0) {
-					//	vatrate = vatamount / vatable;
-					//} else {
-					//	vatrate = 0.00M;
-					//}
-
-					vatrate = printorder.lns[idx].ActualVatRate;
-
-					if (printorder.lns[idx].Part == discount_item_code){
-						vatrate = vat_rate / 100.00M;
-					}
-
-
-					//linetotal = printorder.lns[idx].LineValue - printorder.lns[idx].Discount;
-					//vatable = linetotal / (1 + vatrate);
-					//vatable = Math.Round(vatable,2);
-					//vatamount = linetotal - vatable;
-
-					tot_vatable += vatable;
-					tot_vatamount += vatamount;
-
-
-					if (printorder.lns[idx].Part == discount_item_code) {
-					}
-					else {
-						if (printorder.lns[idx].LineValue < 0)	// return
-							line = "RETURN ";
-				
-						tmp = Math.Abs(printorder.lns[idx].Qty);
-
-						line = line + tmp.ToString();
-						line = line + " X " + printorder.lns[idx].Part + " @ " + printorder.lns[idx].CurrentUnitPrice.ToString("F02");
-						if (printorder.lns[idx].Discount != 0) {
-							if (printorder.lns[idx].DiscPercent != 0) {
-								line = line + " less " + printorder.lns[idx].DiscPercent.ToString() + "% disc.";
-								if (printorder.lns[idx].DiscPercent > id.MaxDiscPC) {
-									line = line + "(overridden)";
-								}
-							}
-							else {
-								line = line + " less " + printorder.lns[idx].Discount.ToString("F02") + " disc.";
-							}
-
-						}
-
-						if (printorder.lns[idx].VatExempt) {
-							line = line + " " + st1[45];
-						}
-
-				
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+=lineincr;
-					}
-				
-					line = pad(printorder.lns[idx].Descr,32)  + rpad((printorder.lns[idx].LineValue - printorder.lns[idx].Discount).ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-					if ((printorder.lns[idx].MasterLine > -1)  && (st1[50] != "")) {
-						line = st1[50];
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+=lineincr;
-					}
-					if ((PrintVatAnalysis >= 2)  && (vatamount != 0.00M)) {
-						line = pad("        Vat",20) + rpad(vatamount.ToString("F02"),8);
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+=lineincr;
-					}
-
-					if ((idx < (printorder.NumLines - 1)) && (printorder.lns[idx+1].Part == discount_item_code)) {
-					}
-					else {
-						yoffset+= lineincr / 2;	// half blank line
-					}
-				}
-
-				line = "----------------------------------------";
-				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-				yoffset+=lineincr;
-
-
-				if (printorder.DiscountVal > 0) {
-					line = rpad("Total      :   ",32) + rpad(printorder.TotVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-					if (printorder.DiscPercent > 0.0M) {
-						line = rpad(printorder.DiscPercent.ToString() + "% Discount   :   ",32) + rpad(printorder.DiscountVal.ToString("F02"),8); 
-					}
-					else {
-						line = rpad("Discount   :   ",32) + rpad(printorder.DiscountVal.ToString("F02"),8); 
-					}
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-
-					vatrate = vat_rate / 100.00M;
-					linetotal = -printorder.DiscountVal;
-					vatable = linetotal / (1 + vatrate);
-					vatable = Math.Round(vatable,2);
-					vatamount = linetotal - vatable;
-
-					tot_vatable += vatable;
-					tot_vatamount += vatamount;
-					if ((PrintVatAnalysis >= 2)  && (vatamount != 0.00M)) {
-						line = pad("        Vat",20) + rpad(vatamount.ToString("F02"),8);
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+= lineincr + lineincr / 2;
-					}
-
-
-					line = rpad("Amount Due :   ",32) + rpad((printorder.TotVal-printorder.DiscountVal).ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-
-				}
-				else {
-					line = rpad("Amount Due :   ",32) + rpad(printorder.TotVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				yoffset += lineincr;	// blank line
-
-				decimal RealCashVal = printorder.CashVal - printorder.DepCashVal;
-
-				if (RealCashVal != 0) {
-					line = rpad("Cash :   ",32) + rpad(RealCashVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				if (printorder.DepCashVal != 0) {
-					line = rpad("Dep Cash :   ",32) + rpad(printorder.DepCashVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				if (printorder.ChangeVal != 0) {
-					line = rpad("Change :   ",32) + rpad(printorder.ChangeVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				decimal RealChequeVal = printorder.ChequeVal - printorder.DepChequeVal;
-				if (RealChequeVal != 0) {
-					line = rpad("Cheque :   ",32) + rpad(RealChequeVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				if (printorder.DepChequeVal != 0) {
-					line = rpad("Dep Cheque :   ",32) + rpad(printorder.DepChequeVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-
-				decimal RealTotCardVal = printorder.TotCardVal - printorder.DepCardVal;
-				if (RealTotCardVal != 0) {
-					line = rpad("Credit Card :   ",32) + rpad((RealTotCardVal+cashback).ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				if (printorder.DepCardVal != 0) {
-					line = rpad("Dep Credit Card :   ",32) + rpad((printorder.DepCardVal).ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				if (cashback != 0) {
-					line = rpad("CashBack :   ",32) + rpad((cashback).ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-			
-				if (printorder.VoucherVal != 0) {
-					line = rpad("Vouchers :   ",32) + rpad(printorder.VoucherVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				if (printorder.AccountVal != 0) {
-					line = rpad("Account :   ",32) + rpad(printorder.AccountVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-				if (printorder.FinanceVal != 0) {
-					line = rpad("Finance :   ",32) + rpad(printorder.FinanceVal.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				if (layaway) {
-					yoffset+=lineincr;
-					line = "Name: " + lName;;
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				} else {
-					if (printcust.Customer == id.CashCustomer) {
-						yoffset+=lineincr;
-						line = st1[27];
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+=lineincr;
-					}
-					else {
-						if (printcust.CompanySearch) {
-							if (printcust.CompanyName != "") {
-								yoffset+=lineincr;	// blank line
-								line = printcust.CompanyName.Trim();
-								erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-								yoffset+=lineincr;
-								line = st1[27];
-								erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-								yoffset+=lineincr;
-								if (printorder.PriceSource != "") {
-									line = st1[28] + " " + printorder.PriceSource + " " + printorder.SourceDescr;
-									erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-									yoffset+=lineincr;
-								}
-							}
-						}
-						else {
-							if ((printcust.Title != "") && (printcust.Surname != "")) {
-								yoffset+=lineincr;	// blank line
-								line = (printcust.Title + " " + printcust.Surname).Trim();
-								erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-								yoffset+=lineincr;
-								line = st1[27];
-								erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-								yoffset+=lineincr;
-								if (printorder.PriceSource != "") {
-									line = st1[28] + " " + printorder.PriceSource + " " + printorder.SourceDescr;
-									erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-									yoffset+=lineincr;
-								}
-							}
-						}
-					}
-				}
-
-				if (printorder.CollectionType == "Deliver") {
-					line = delivermessage;
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-				if (printorder.CollectionType == "Collect") {
-					line = collectmessage;
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-			
-
-				if (printorder.SalesTypeDesc != "") {
-					line = printorder.SalesTypeDesc;
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-
-				if (printorder.SalesReference != "") {
-					line = printorder.SalesReference;
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-				}
-
-
-				if (vatregno != "") {
-					yoffset += lineincr;	// blank line
-					line = "VAT Reg. No. " + vatregno;
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr;
-					if ((PrintVatAnalysis > 0) && (!layaway)) {
-						yoffset += lineincr;	// blank line
-						line = "VAT Analysis:";
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+=lineincr;
-						line = pad("Goods Amount:",20) + rpad(tot_vatable.ToString("F02"),8);
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+=lineincr;
-						line = pad("VAT Amount  :",20) + rpad(tot_vatamount.ToString("F02"),8);
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+=lineincr;
-						line = pad("Total Amount:",20) + rpad((tot_vatable+tot_vatamount).ToString("F02"),8);
-						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-						yoffset+=lineincr;
-					}
-				}
-
-				yoffset += lineincr;	// blank line
-
-				line = id.TillNumber;
-				if (reprint)
-					line = line + "       REPRINTED";
-
-				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-				yoffset+=lineincr;
-
-
-
-
-				if (usefullname == 1) {
-					line = "OP:" + id.UserName + " " + id.UserFirstName + " " + id.UserSurname;
-				}
-				else {
-					line = "OP:" + id.UserFirstName;
-				}
-				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-				yoffset+=lineincr;
-
-				if (layaway) {
-					line = pad(DateTime.Now.ToShortDateString() + " " + DateTime.Now.ToLongTimeString(),20);
-				} else {
-					line = pad(DateTime.Now.ToShortDateString() + " " + DateTime.Now.ToLongTimeString(),20) + rpad(printorder.OrderNumber,20);
-				}
-				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-				yoffset+=lineincr;
-
-
-				if (!layaway) {
-					if (printerbarcodefont.ToLower() != "none") {
-						IntPtr hfontBarCode = CreateFont((ppi/4),0,0,0,400,0,0,0,DEFAULT_CHARSET,OUT_DEVICE_PRECIS,CLIP_EMBEDDED,DEFAULT_QUALITY,FIXED_PITCH,printerbarcodefont);
-						erc4 = SelectObject(hdc,hfontBarCode);
-
-						line = printerbarcodestart + printorder.OrderNumber + printerbarcodestop;
-			
-						erc5 = TextOut(hdc,ppi / 4,yoffset,line,line.Length);
-						yoffset+=lineincr;
-						bool erc77 = DeleteObject(hfontBarCode);
-					}
-				}
-
-
-
-				if (signature) {
-					yoffset+=lineincr * 2;
-					line = "Please Sign below:";
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-					yoffset+=lineincr * 8;
-					line = "----------------------------------------";
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-
-					yoffset+=lineincr * 4;
-					line = "";
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
-				}
-
-
-				int erc9;
-	
-				if ((ppi < 300) && (nocut == false)) {	// dont use for laser printers
-					erc9 = EndDoc(hdc);
-					erc3 = StartDoc(hdc,0);
-
-					erc4 = SelectObject(hdc,hfontControl);
-					erc5 = TextOut(hdc,0,0,"P",1);	// cut paper
-				}
-				
-				erc9 = EndDoc(hdc);
-			
-				bool erc7 = DeleteObject(hfontControl);
-				erc7 = DeleteObject(hfontPrint);
-
-
-				erc7 = DeleteObject(HBit);
-
-				bool erc20 = DeleteDC(hcdc);
-				bool erc8 = DeleteDC(hdc);
-
-
-			}	// end lock
-
-
-
-
-
-//			PrintDocument pd = new PrintDocument();
-//			pd.PrintPage += new PrintPageEventHandler
-//				(this.pd_PrintPage);
-//			pd.PrinterSettings.PrinterName = printername;
-//
-//
-//			pd.Print();
-
-			return;
+			}
+			catch
+			{
+				return false;
+			}
+			return false;
 		}
+
+		/// <summary>
+		/// Array List holding TaxCodeRecords, one record for each tax rate
+		/// </summary>
+		class TaxArrayList : ArrayList
+		{
+			/// <summary>
+			/// Find tax rate in list. If found update total tax at that rate else add new rate.
+			/// </summary>
+			/// <param name="inTaxRecord"></param>
+			/// <returns></returns>
+			public bool AddTaxRecord(TaxCodeRecord inTaxRecord)
+			{
+				try
+				{
+					foreach (TaxCodeRecord eachTaxRecord in this)
+					{
+						if (inTaxRecord.TaxRate == eachTaxRecord.TaxRate)
+						{
+							// increment amount if founf
+							eachTaxRecord.TaxValue += inTaxRecord.TaxValue; 
+							return true;
+						}
+					}
+					// if return has not been called then no matching tax rate record found.
+					this.Add(inTaxRecord);
+				}
+				catch
+				{
+					return false;
+				}
+				return false;
+			}
+
+		}
+
+		class TaxCodeRecord
+		{
+			private decimal mTaxValue;
+			private string mTaxRate;
+			private decimal mActualGross;
+			public decimal TaxValue
+			{
+				get
+				{
+					return mTaxValue;
+				}
+				set
+				{
+					mTaxValue = value;
+				}
+			}
+			public string TaxRate
+			{
+				get
+				{
+					return mTaxRate;
+				}
+				set
+				{
+					mTaxRate = value;
+				}
+			}
+			public decimal ActualGross
+			{
+				get
+				{
+					return mActualGross;
+				}
+				set
+				{
+					mActualGross = value;
+				}
+			}
+		}
+
 		private void printit(bool reprint, bool layaway, string lName, bool signature) {
 			int idx;
 			string line = null;
@@ -21561,10 +22052,8 @@ namespace epos {
 			IntPtr HBit = (IntPtr)0;
 			IntPtr hcdc = (IntPtr)0;
 
-			lock (lockit) {
-
-
-
+			lock (lockit)
+			{
 				// if we need to logout after an order, then set the variable emptyorder to 0 (the logout state)
 				// else set it back to 2 (THe new order state)
 				//
@@ -21608,6 +22097,11 @@ namespace epos {
 				}
 
 				int erc3 = StartDoc(hdc,0);
+
+#if PRINT_TO_FILE
+				// Create a writer for printing receipt to text file in trace.
+				StartDebugReceipt();
+#endif
 
 				if ((reprint == false) && (layaway == false)) {
 					if (!printorder.TillOpened) {
@@ -21681,14 +22175,8 @@ namespace epos {
 
 				yoffset += lineincr * 2;	// 2 blank lines
 
-
-
-
-
 				//			line = pad("Item",8) + pad("Description",20) + rpad("Qty",4) + rpad("Value",8); 
 				//			erc5 = TextOut(hdc,5,60,line,line.Length);
-
-
 
 				decimal tot_vatable = 0.00M;
 				decimal tot_vatamount = 0.00M;
@@ -21696,6 +22184,9 @@ namespace epos {
 				decimal vatamount = 0.00M;
 				decimal vatrate = 0.00M;
 				decimal linetotal = 0.00M;
+
+				//sjl: store every different tax_code for VAT breakdown (VatAnalysis=3)
+				TaxArrayList TaxRateStore = new TaxArrayList();
 
 				for (idx = 0; idx < printorder.NumLines; idx++) {
 
@@ -21714,10 +22205,21 @@ namespace epos {
 
 					vatrate = printorder.lns[idx].ActualVatRate;
 
+					// Get all different totals for each VAT rate.
+					if (PrintVatAnalysis == 3)
+					{
+						TaxCodeRecord currentVatRecord = new TaxCodeRecord();
+
+						currentVatRecord.TaxRate = (vatrate * 100.0M).ToString("F01");
+						currentVatRecord.TaxValue = vatamount;
+						currentVatRecord.ActualGross = printorder.lns[idx].ActualGross;
+
+						TaxRateStore.AddTaxRecord(currentVatRecord);
+					}
+
 					if (printorder.lns[idx].Part == discount_item_code){
 						vatrate = vat_rate / 100.00M;
 					}
-
 
 					//linetotal = printorder.lns[idx].LineValue - printorder.lns[idx].Discount;
 					//vatable = linetotal / (1 + vatrate);
@@ -21726,7 +22228,6 @@ namespace epos {
 
 					tot_vatable += vatable;
 					tot_vatamount += vatamount;
-
 
 					if (printorder.lns[idx].Part == discount_item_code) {
 					}
@@ -21757,11 +22258,11 @@ namespace epos {
 								line = line + " less " + printorder.lns[idx].Discount.ToString("F02") + " disc.";
 							}
 
-							line = pad(line,32) + rpad((printorder.lns[idx].LineValue - printorder.lns[idx].Discount).ToString("F02"),8);
+							line = pad(line,33) + rpad((printorder.lns[idx].LineValue - printorder.lns[idx].Discount).ToString("F02"),7);
 
 
 						} else {		// no discount - print price on 1st line
-							line = pad(line,32) + rpad((printorder.lns[idx].LineValue - printorder.lns[idx].Discount).ToString("F02"),8);
+							line = pad(line,33) + rpad((printorder.lns[idx].LineValue - printorder.lns[idx].Discount).ToString("F02"),7);
 						}
 
 						if (printorder.lns[idx].VatExempt) {
@@ -21792,13 +22293,13 @@ namespace epos {
 						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 						yoffset+=lineincr;
 					}
-					if ((PrintVatAnalysis >= 2)  && (vatamount != 0.00M)) {
-						line = pad("        Vat",20) + rpad(vatamount.ToString("F02"),8);
+					if ((PrintVatAnalysis == 2)  && (vatamount != 0.00M)) {
+						line = rpad("       Vat :   ", 32) + rpad(vatamount.ToString("F02"), 8);
 						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 						yoffset+=lineincr;
 					}
 
-					if ((idx < (printorder.NumLines - 1)) && (printorder.lns[idx+1].Part == discount_item_code)) {
+					if ((idx < (printorder.NumLines - 1)) && (printorder.lns[idx+1].Part == discount_item_code)){
 					}
 					else {
 						yoffset+= lineincr / 2;	// half blank line
@@ -21836,12 +22337,11 @@ namespace epos {
 
 					tot_vatable += vatable;
 					tot_vatamount += vatamount;
-					if ((PrintVatAnalysis >= 2)  && (vatamount != 0.00M)) {
-						line = pad("        Vat",20) + rpad(vatamount.ToString("F02"),8);
+					if ((PrintVatAnalysis > 1)  && (vatamount != 0.00M)) {
+						line = pad("        Vat", 32) + rpad(vatamount.ToString("F02"), 8);
 						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 						yoffset+= lineincr + lineincr / 2;
 					}
-
 
 					line = rpad("Amount Due :   ",32) + rpad((printorder.TotVal-printorder.DiscountVal).ToString("F02"),8); 
 					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
@@ -21910,7 +22410,7 @@ namespace epos {
 					changeline = true;
 					yoffset+=lineincr;
 				}
-			
+
 				if (printorder.VoucherVal != 0) {
 					decimal valRemaining = printorder.VoucherVal;
 					foreach (DictionaryEntry de in printorder.Vouchers) {
@@ -21956,18 +22456,37 @@ namespace epos {
 					yoffset+=lineincr;
 				}
 
+				/* sjl, figuring how printing vouchers works.
+				if ((printcust.Points > 0) && showvoucherinfo)
+				{
+					yoffset += lineincr;
+					yoffset += lineincr;
+					line = pad(st1[60], 32) + rpad(printcust.Points.ToString(), 8);
+					erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+					yoffset += lineincr;
+				}
+				if ((printcust.PointsValue > 0) && showvoucherinfo)
+				{
+					tmpStr = printcust.PointsValue.ToString();
 
-
-				if (printorder.NewPoints > 0) {
+					line = pad(st1[60], 32) + rpad(printcust.Points.ToString(), 8);
+					erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+					yoffset += lineincr;
+				}
+				//*/
+				// added boolean to turn feature off [till, showvoucherinfo]
+				if ((printorder.NewPoints > 0) && showvoucherinfo)
+				{
 					yoffset+=lineincr;
 					yoffset+=lineincr;
-					line = pad(st1[60],32) + rpad(printorder.NewPoints.ToString(),8); 
+					line = pad(st1[60], 32) + rpad(printorder.NewPoints.ToString(), 8);
 					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 					yoffset+=lineincr;
 				}
-				if (printorder.NewPointsValue > 0.00M) {
-					line = pad(st1[61],32) + rpad(printorder.NewPointsValue.ToString("F02"),8); 
-					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
+				if ((printorder.NewPointsValue > 0.00M) && showvoucherinfo)
+				{
+					line = pad(st1[61],32) + rpad(printorder.NewPointsValue.ToString("F02"),8);
+					erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
 					yoffset+=lineincr;
 				}
 
@@ -22054,18 +22573,39 @@ namespace epos {
 					line = "VAT Reg. No. " + vatregno;
 					erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 					yoffset+=lineincr;
-					if ((PrintVatAnalysis > 0) && (!layaway)) {
+					if ((PrintVatAnalysis > 0) && (!layaway))
+					{
 						yoffset += lineincr;	// blank line
-						line = "VAT Analysis:";
+						line = "VAT Analysis.";
 						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 						yoffset+=lineincr;
-						line = pad("Goods Amount:",20) + rpad(tot_vatable.ToString("F02"),8);
+
+						// Print off individual vat values ie 0%, 5%, 17.5% etc
+						if ((PrintVatAnalysis == 3) && (TaxRateStore != null))
+						{
+							string aVatRate = "";
+							string aVatValue = "";
+
+							for (int kl = 0; kl < TaxRateStore.Count; kl++)
+							{
+								TaxCodeRecord extractedVatRecord = (TaxCodeRecord)TaxRateStore[kl];
+
+								aVatRate = extractedVatRecord.TaxRate;
+								aVatValue = extractedVatRecord.TaxValue.ToString("F02");
+
+								line = rpad("VAT at " + aVatRate.ToString() + "% :   "  , 32) + rpad(aVatValue, 8);
+								erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+								yoffset += lineincr;
+							}
+						}
+
+						line = rpad("Goods Amount :   ", 32) + rpad(tot_vatable.ToString("F02"), 8);
 						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 						yoffset+=lineincr;
-						line = pad("VAT Amount  :",20) + rpad(tot_vatamount.ToString("F02"),8);
+						line = rpad("VAT Amount :   ",32) + rpad(tot_vatamount.ToString("F02"),8);
 						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 						yoffset+=lineincr;
-						line = pad("Total Amount:",20) + rpad((tot_vatable+tot_vatamount).ToString("F02"),8);
+						line = rpad("Total Amount :   ",32) + rpad((tot_vatable+tot_vatamount).ToString("F02"),8);
 						erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 						yoffset+=lineincr;
 					}
@@ -22079,9 +22619,6 @@ namespace epos {
 
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset+=lineincr;
-
-
-
 
 				if (usefullname == 1) {
 					line = "OP:" + id.UserName + " " + id.UserFirstName + " " + id.UserSurname;
@@ -22100,11 +22637,69 @@ namespace epos {
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset+=lineincr;
 
+				if (printorder.SalesType == 2)
+				{
+					yoffset += lineincr;	// blank lines
+
+					if (printcust.CustRef == "MAIN")
+					{
+						line = "Mail Order To: " + printcust.Title + " " + printcust.Surname;
+						yoffset += this.printandwraplines(hdc, 5, yoffset, line, lineincr);
+
+						if (currentcust.Address != "")
+						{
+							erc5 = TextOut(hdc, 5, yoffset, currentcust.Address, currentcust.Address.Length);
+							yoffset += lineincr;
+						}
+						if (currentcust.City != "")
+						{
+							erc5 = TextOut(hdc, 5, yoffset, currentcust.City, currentcust.City.Length);
+							yoffset += lineincr;
+						}
+						if (currentcust.County != "")
+						{
+							erc5 = TextOut(hdc, 5, yoffset, currentcust.County, currentcust.County.Length);
+							yoffset += lineincr;
+						}
+						if (currentcust.PostCode != "")
+						{
+							erc5 = TextOut(hdc, 5, yoffset, currentcust.PostCode, currentcust.PostCode.Length);
+							yoffset += lineincr;
+						}
+					}
+					else
+					{
+						line = "Mail Order To: " + printcust.DelTitle + " " + printcust.DelSurname;
+						yoffset += this.printandwraplines(hdc, 5, yoffset, line, lineincr);
+
+						if (currentcust.DelAddress != "")
+						{
+							erc5 = TextOut(hdc, 5, yoffset, currentcust.DelAddress, currentcust.DelAddress.Length);
+							yoffset += lineincr;
+						}
+
+						if (currentcust.DelCity != "")
+						{
+							erc5 = TextOut(hdc, 5, yoffset, currentcust.DelCity, currentcust.DelCity.Length);
+							yoffset += lineincr;
+						}
+						if (currentcust.DelCounty != "")
+						{
+							erc5 = TextOut(hdc, 5, yoffset, currentcust.DelCounty, currentcust.DelCounty.Length);
+							yoffset += lineincr;
+						}
+						if (currentcust.DelPostCode != "")
+						{
+							erc5 = TextOut(hdc, 5, yoffset, currentcust.DelPostCode, currentcust.DelPostCode.Length);
+							yoffset += lineincr;
+						}
+					}
+				}
 
 				// now returns message
 				if (st1[55] != "") {
 					yoffset+=lineincr;
-					yoffset+=lineincr;
+					//yoffset+=lineincr;
 
 					line = st1[55];
 					yoffset += this.printandwraplines(hdc,5,yoffset,line,lineincr);
@@ -22129,9 +22724,18 @@ namespace epos {
 						yoffset+=lineincr;
 						bool erc77 = DeleteObject(hfontBarCode);
 					}
+#if PRINT_EXTRA_ORDER_NO
+					// Print Order Number TODO: more test needed.
+					yoffset += lineincr;
+					erc4 = SelectObject(hdc, hfontPrint);				
+					line = printorder.OrderNumber;
+
+					line = rpad(printorder.OrderNumber, 39);
+					erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+
+					yoffset += lineincr;
+#endif
 				}
-
-
 
 				if (signature) {
 					erc4 = SelectObject(hdc,hfontPrint);
@@ -22159,7 +22763,11 @@ namespace epos {
 				}
 				
 				erc9 = EndDoc(hdc);
-			
+
+#if PRINT_TO_FILE
+				// Close a writer for printing receipt to text file.
+				EndDebugReceipt();
+#endif			
 				bool erc7 = DeleteObject(hfontControl);
 				erc7 = DeleteObject(hfontPrint);
 
@@ -22229,8 +22837,9 @@ namespace epos {
 							if (res ==  0) {
 								int ex = Marshal.GetLastWin32Error();
 								MessageBox.Show("GetCommState Error: " + ex.ToString(),"Serial Cash Drawer");
-							} else {
-
+							}
+							else
+							{
 								dcb.ByteSize = 8;
 								dcb.Parity = 0;
 								dcb.StopBits = 0;
@@ -22258,9 +22867,12 @@ namespace epos {
 							}
 						}
 					}
-				} else if (cashdrawercommport.StartsWith("OPOS")) {
 				}
-			} else
+				else if (cashdrawercommport.StartsWith("OPOS"))
+				{
+				}
+			}
+			else
 			{
 				DlPortWritePortUchar(cashdrawerport,1);
 				Thread.Sleep(500);
@@ -22400,9 +23012,8 @@ namespace epos {
 			ev.HasMorePages = false;
 		}
 
-		private void printzreport(instancedata id, XmlElement rep, bool zrep) {
-
-
+		private void printzreport(instancedata id, XmlElement rep, bool zrep)
+		{
 			string line = null;
 			int yoffset = 0;
 			decimal tmp;
@@ -22461,6 +23072,11 @@ namespace epos {
 
 				int erc3 = StartDoc(hdc,0);
 
+#if PRINT_TO_FILE
+				// Create a writer for printing receipt to text file in trace.
+				StartDebugReceipt();
+#endif
+
 
 				if (printlogo != "") {
 
@@ -22477,9 +23093,6 @@ namespace epos {
 
 				IntPtr hfontPrint = CreateFont((ppi/10),0,0,0,400,0,0,0,DEFAULT_CHARSET,OUT_DEVICE_PRECIS,CLIP_EMBEDDED,DEFAULT_QUALITY,FIXED_PITCH,printerfont);
 				erc4 = SelectObject(hdc,hfontPrint);
-
-
-
 
 				yoffset += lineincr;
 				yoffset += lineincr;
@@ -22625,9 +23238,12 @@ namespace epos {
 						throw(new ApplicationException());
 					}
 					foreach (XmlNode payment in payments) {
-						try {
+						try
+						{
 							tmp = decimal.Parse(payment.SelectSingleNode("Method_Total_Payments").InnerXml);
-						} catch {
+						}
+						catch
+						{
 							tmp = 0.00M;
 						}
 						line = payment.SelectSingleNode("Paym_pay_method").InnerXml.PadRight(22).Substring(0,22) +
@@ -22770,12 +23386,16 @@ namespace epos {
 
 			}	// end lock
 
+#if PRINT_TO_FILE
+			// Close a writer for printing receipt to text file.
+			EndDebugReceipt();
+#endif			
+
+
 
 		}
 
-		#endregion
-
-
+		#endregion // print
 
 		#region debug
 		public void deleteoldfiles() {
@@ -22876,7 +23496,7 @@ namespace epos {
 
 			return;
 		}
-		#endregion
+		#endregion // debug
 
 		#region timer
 		private void timer1_Tick(object sender, System.EventArgs e)
@@ -22903,23 +23523,24 @@ namespace epos {
 			Application.Exit();
 		}
 
-
-		#endregion
+		#endregion // timer
 
 		#region Customer Display
-		private void paintdisplay(string msg) {
-			if (EpsonCustomerDisplay != "") {
+		private void paintdisplay(string msg)
+		{
+			if (EpsonCustomerDisplay != "")
+			{
 				CODISPLib16.OPOSLineDisplay ld = new CODISPLib16.OPOSLineDisplayClass();
 				ld.Open(EpsonCustomerDisplay);
 				ld.ClaimDevice(1000);
 				ld.DeviceEnabled = true;
-				ld.DisplayText(msg,0);
+				ld.DisplayText(msg, 0);
 				ld.DeviceEnabled = false;
 				ld.ReleaseDevice();
 				ld.Close();
 			}
 		}
-		#endregion
+		#endregion // Customer Display
 
 		#region Programmable Touch Panel
 		private int loadmenu(string group, string parent) {
@@ -23115,12 +23736,7 @@ namespace epos {
 			}
 		}
 
-		#endregion
-
-        private void emdStandard1_Click(object sender, EventArgs e)
-        {
-            //emdvBoardDlg1.ShowCalculator(20.00);
-        }
+		#endregion // Programmable Touch Panel
 
 	}
 }

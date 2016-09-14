@@ -40,7 +40,7 @@ namespace epos {
 
 	public class MainForm : System.Windows.Forms.Form
 	{
-		public static string Version = "EPoS Version 5.000";
+		public static string Version = "EPoS Version 5.003";
 
 		//2.973 -				JoJo cust SP functionality from v2
 		//2.974 -				JoJo MBL + fixes + IP Offline
@@ -51,7 +51,9 @@ namespace epos {
 		//2.976 -	2016-08-16	JoJo- blank connection string as default
 		//2.976 -	2016-09-02	Axminster- fixes to issue 11 from SharePoint list.
 		//5.000 -	2016-09-07	V2 to V5 Upgrade
-		
+		//5.001 -	2016-09-07	V3 to V5 Upgrade
+		//5.002 -	2016-09-09	V4 to V5 Upgrade
+		//5.003	-	2016-09-14	Added TRH107 (Uniface9701)		
 
 		public const int DIGIPOS_DRAWER_CMD = 0x48F;
 
@@ -131,7 +133,8 @@ namespace epos {
 		private partsearch searchres = new partsearch();
 		private stocksearch stocksearchres = new stocksearch();
 		private stocksearch stockbinsearchres = new stocksearch();
-		//private int selectedLine = -1;
+		//2016-09-09 SL - 5.002 - V4 to V5 Upgrade
+		private int selectedLine = -1;
 		private custsearch custsearchres = new custsearch();
 		//private partsearch altnres = new partsearch();
 
@@ -162,8 +165,6 @@ namespace epos {
 		private static DateTime custrecDate = DateTime.Now;
 		private static DateTime storerecDate = DateTime.Now;
 		private string saveCardAmount = "";
-		//private string[] merchantVeriFoneVoucher = new string[VeriFoneVoucherMax];// store card vouchers
-		//private string[] customerVeriFoneVoucher = new string[VeriFoneVoucherMax];// store card vouchers
 
 		private bool processing_deposit_finance = false;
 
@@ -832,7 +833,7 @@ namespace epos {
 		private bool printsignatureline = false;
 		private bool printsignaturereturn = false;
 		private bool showflightlist = false;
-        private bool usecomponentasbundle = false;
+		private bool usecomponentasbundle = false;
 		private bool reprintcollect = false;
 
 		private bool treatvouchersascash = false;
@@ -869,7 +870,7 @@ namespace epos {
 		private string ccitylayout = "47,0";
 		private string ctradeaccountlayout = "47,0";
 		private string cmedicalexemptionlayout = "47,0";
-        private bool financewarning = false;
+		private bool financewarning = false;
 		private string ccustomertypelayout = "47,0";
 
 		private bool twolinecustdisp = false;
@@ -2865,9 +2866,10 @@ namespace epos {
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till", "textindent2", "", dat, 200, inifile);
 			textindent2 = dat.ToString();
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("till", "textindent3", "centre", dat, 200, inifile);
-            textindent3 = dat.ToString();
+				
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("till", "textindent3", "centre", dat, 200, inifile);
+			textindent3 = dat.ToString();
 
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("till", "receiptoption", "1", dat, 200, inifile);
@@ -3206,11 +3208,11 @@ namespace epos {
 			erc = GetPrivateProfileString("CUST_WINDOW", "MEDICALEXEMPTION", "47,0", dat, 200, inifile);
 			this.cmedicalexemptionlayout = dat.ToString();
 
-            dat = new StringBuilder(200);
-            erc = GetPrivateProfileString("CUST_WINDOW", "financewarning", "47,0", dat, 200, inifile);
-            this.financewarning = (dat.ToString().ToLower() == "true");
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("CUST_WINDOW", "financewarning", "47,0", dat, 200, inifile);
+			this.financewarning = (dat.ToString().ToLower() == "true");
 
-            dat = new StringBuilder(200);
+			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("CUST_WINDOW", "CUSTOMER_TYPE", "47,0", dat, 200, inifile);
 			this.ccustomertypelayout = dat.ToString();
 
@@ -14652,12 +14654,12 @@ namespace epos {
 						newstate(16);
 						return;
 					}
-                    if (eventdata == "SOURCE")
-                    {
-                        //if (id.SourceCode != currentcust.Source)
-                        //{
-                        //    return;
-                        //}
+					if (eventdata == "SOURCE")
+					{
+						//if (id.SourceCode != currentcust.Source)
+					    //{
+						//	return;
+						//}
 						
 						
 						//2016-05-18 - fix for JOJO sequenceoption == 3 >>
@@ -14666,9 +14668,9 @@ namespace epos {
 							gotcustomer = true;
 						//2016-05-18 - fix for JOJO sequenceoption == 3 ^^
 
-                        newstate(51);
-                        changecomb2("EC11", id.SourceCode);
-                        return;
+						newstate(51);
+						changecomb2("EC11", id.SourceCode);
+						return;
                     }
                     if (eventdata == "TAXEXEMPT")
                     {
@@ -19832,6 +19834,14 @@ namespace epos {
 					elucid.genord(id,currentorder);
 				changetext("L_HDG7",st1[29]);
 				enablecontrol("BF8",false);
+				//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+				if ((outstanding > 0 || outstanding < 0) && cardinput == 0)
+				{
+					// if order is not 0 and card input is 0
+					changetext("L_HDG7", st1[4]);
+					return;
+				}
+				//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 
 				erc = creditcardprocess(id,currentorder);
 
@@ -19891,7 +19901,13 @@ namespace epos {
 						case -10:
 							changetext("L_HDG7", "-10 " + st1[10]);
 							break;
-						case -55:
+						//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+                        case -11:
+                            // sage pay card cancel (cancelled )
+                            changetext("L_HDG7", "-11 " + st1[9]);
+                            break;
+						//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
+                        case -55:
 							changetext("L_HDG7", "-55 " + st1[35]);
 							break;
 						case 7:
@@ -22582,6 +22598,7 @@ namespace epos {
 
 						gotcustomer = true;
 
+						///2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
 						//2016-08-11 SL move ahead customer points screen >>
 						if (currentorder.SalesType == 1)
 						{
@@ -22599,26 +22616,45 @@ namespace epos {
 						{
 							changetext("L_CUST2", "Cust: $CUST");
 						}
-						//2016-08-11 SL move ahead customer points screen ^^
-						
-						if (((currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) && showvoucherinfo)
-						{
-							this.m_calling_state = 10;
-							newstate(68);
-							fillvouchers(currentcust);
-							return;
-						}
-						if (forcecustomersource)//(validateorderdiscounts)
+
+
+						//2016-08-10 SL - USE DEFAULT SOURCE AS THE SOURCE IS NOT CHOSEN HERE >>
+						//if (forcecustomersource)
 						{
 							m_prev_state = 22;
 							newstate(51);
 							changecomb2("EC11", id.SourceCode);
+//V4
+							return;
 						}
-						else
+						//if (( (currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) && showvoucherinfo)
+						//{							
+						//	this.m_calling_state = 10;
+						//	newstate(68);
+						//	fillvouchers(currentcust);
+						//	return;
+						//}
+						//2016-08-10 SL - USE DEFAULT SOURCE AS THE SOURCE IS NOT CHOSEN HERE ^^
+
+						//2016-08-10 SL - USE DEFAULT SOURCE AS THE SOURCE IS NOT CHOSEN HERE >>
+						if (!forcecustomersource)
 						{
 							newstate(10);
 							enabletradeoption();
 						}
+						//2016-08-10 SL - USE DEFAULT SOURCE AS THE SOURCE IS NOT CHOSEN HERE ^^
+
+						//if (forcecustomersource)//(validateorderdiscounts)
+						//{
+						//	m_prev_state = 22;
+						//	newstate(51);
+						//}
+						//else
+						//{
+						//	newstate(10);
+						//	enabletradeoption();
+						//}
+						//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 						return;
 					}
 				}
@@ -24172,9 +24208,21 @@ namespace epos {
 					changetext("L_HDG6",st1[2]);
 					hdg6waserror = true; beep();
 				}
-				else {
-					super.UserName = eventdata;
-					newstate(28);
+				else
+				{
+					//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+					if (onesteplogin)
+					{
+						super.UserName = eventdata;
+						super.Pwd = eventdata;
+						processstate_28(stateevents.textboxcret, "", 0, eventdata);
+					}
+					else
+					{
+						super.UserName = eventdata;
+						newstate(28);
+					}
+					//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 				}
 			}
 			return;
@@ -24197,6 +24245,13 @@ namespace epos {
 
 				super.Pwd = eventdata;
 				changetext("EB1","");
+				//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+				if (super.UserName == null)
+					super.UserName = "";
+				//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
+
+				if (super.UserName.Length == 0 && super.Pwd.Length > 0)
+					super.UserName = super.Pwd;
 
 				erc = elucid.login(super,true);
 				if (erc != 0) {
@@ -24294,6 +24349,16 @@ namespace epos {
 					processstate_15(stateevents.functionkey,"PASSWORDOK",0,"MANUAL");
 					return;
 				}
+				//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+				else if (m_calling_state == 39)
+				{	// manual C/C processing
+					if (!allowsuperdiscounts)
+					{
+						newstate(10);
+						return;
+					}
+				}
+				//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 
 				if (super.MaxDiscPC < supervisorDiscountNeeded) {
 					newstate(27);
@@ -24459,13 +24524,24 @@ namespace epos {
 					return;
 				}
 				if (m_calling_state == 39) {	// order discount
-					//currentorder.DiscountVal = ordDiscount; TODO, TMP two lines: 1 discount, 2 remaining.
-					currentorder.TotVal = currentorder.TotVal - ordDiscount;
-					//
-					outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal - currentorder.DepCashVal - currentorder.DepChequeVal - currentorder.DarVouch1Val - currentorder.DarVouch2Val;
-					this.m_item_val = outstanding.ToString("F02");
-					newstate(10);
-					return;
+					//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+					if (allowsuperdiscounts)
+					{
+						// THIS WILL NOW ADD THE DISCOUNT AS A SUPERVISOR...
+						processstate_39(stateevents.textboxcret, "EB1", 1, currentorder.DiscPercent.ToString());
+						return;
+					}
+					else
+					{
+						//currentorder.DiscountVal = ordDiscount; TODO, TMP two lines: 1 discount, 2 remaining.
+						currentorder.TotVal = currentorder.TotVal - ordDiscount;
+						//
+						outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal - currentorder.DepCashVal - currentorder.DepChequeVal - currentorder.DarVouch1Val - currentorder.DarVouch2Val;
+						this.m_item_val = outstanding.ToString("F02");
+						newstate(10);
+						return;
+					}
+					//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 				}
 				if (refundoption == 3)
 				{
@@ -24586,9 +24662,10 @@ namespace epos {
 					visiblecontrol("XB4", false);
 					visiblecontrol("XB5", false);
 					gotcustomer = true;
-
-					if (this.m_calling_state == 17)
+					//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+					if (this.m_calling_state == 17 || this.m_calling_state == 22)
 					{
+					//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 						currentcust = newcust;
 						gotcustomer = true;
 						gotcustomer = true;
@@ -24695,15 +24772,22 @@ namespace epos {
 						int res = da.Fill(ds);
 						if (res > 0)
 						{
-							postcode = ds.Tables[0].Rows[0]["postcode"].ToString();
-							string addr = ds.Tables[0].Rows[0]["street"].ToString();
-							string property = ds.Tables[0].Rows[0]["property"].ToString();
-							string town = ds.Tables[0].Rows[0]["town"].ToString();
-							string county = ds.Tables[0].Rows[0]["county"].ToString();
-							changetext("EC_POST_CODE", postcode);
-							changetext("EC_ADDRESS", addr);
-							changetext("EC_CITY", town);
-							changetext("EC_COUNTY", county);
+							string tmp = ds.Tables[0].Rows[0].ToString();
+							///2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+							tmp = ds.Tables[0].Rows[0]["postcode"].ToString();
+							if (tmp.Length > 0)
+							{
+								postcode = tmp;
+							//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
+								string addr = ds.Tables[0].Rows[0]["street"].ToString();
+								string property = ds.Tables[0].Rows[0]["property"].ToString();
+								string town = ds.Tables[0].Rows[0]["town"].ToString();
+								string county = ds.Tables[0].Rows[0]["county"].ToString();
+								changetext("EC_POST_CODE", postcode);
+								changetext("EC_ADDRESS", addr);
+								changetext("EC_CITY", town);
+								changetext("EC_COUNTY", county);
+							}
 							focuscontrol("EC_INITIALS");
 						}
 						else
@@ -27085,16 +27169,50 @@ namespace epos {
 								return;
 							}
 
+							decimal tmpMaxDiscount = -0.1m;
 							discperc = newdiscount;
 							if (eventname != "NOCASCADE")
 							{
+								//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+								if (allowsuperdiscounts && eventtag == 1 && super.MaxDiscPC > id.MaxDiscPC)
+								{
+									tmpMaxDiscount = id.MaxDiscPC;
+									id.MaxDiscPC = super.MaxDiscPC;
+								}
+								//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
+
 								if (!this.CalculateCascasingDiscount(id, currentorder, discperc))
 								{
-									changetext("L_HDG6", st1[41].Replace("ZZ", id.MaxDiscPC.ToString()));
-									focuscontrol("EB1");
-									hdg6waserror = true; beep();
-									discperc = 0;
-									return;
+									//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+									if (allowsuperdiscounts)// && eventtag == 0)
+									{
+										if (eventtag == 0)
+										{
+											currentorder.DiscPercent = discperc;
+											m_calling_state = 39;
+											openingtill = false;
+											changetext("EB1", "");
+											newstate(27);
+											return;
+										}
+									}
+									//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
+									else
+									{
+										if (allowsuperdiscounts && eventtag == 0)
+										{
+											newstate(39);
+										}
+										changetext("L_HDG6", st1[41].Replace("ZZ", id.MaxDiscPC.ToString()));
+										focuscontrol("EB1");
+										hdg6waserror = true; beep();
+										discperc = 0;
+										return;
+									}
+								}
+								if (eventtag == 1 && tmpMaxDiscount > 0.0m)
+								{
+									id.MaxDiscPC = tmpMaxDiscount;
 								}
 								//TODO: re-write but work out if it goes over max for an empl! TODOMONDAY
 								currentorder.DiscountVal = 0.00M;
@@ -29543,7 +29661,7 @@ namespace epos {
 						searchres.NumLines = retord.NumLines;
 
 						for (int idx = 0; idx < retord.NumLines; idx++)
-						{
+						{//v2 - only return negative lines
 							// only return negative lines
                             //if (retord.lns[idx].Qty > 0)
                             {                           
@@ -31609,11 +31727,20 @@ namespace epos {
 						newstate(65);
 					}
 					else
-					{
-						m_calling_state = 64;
-						openingtill = false;
-						newstate(27);
-					}
+					{//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+						if (onesteplogin)
+						{
+							m_calling_state = 64;
+							openingtill = false;
+							newstate(28);
+						}
+						else
+						{
+							m_calling_state = 64;
+							openingtill = false;
+							newstate(27);
+						}
+					}//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 					return;
 
 
@@ -31849,9 +31976,8 @@ namespace epos {
 				if (eventdata == "OK")
 				{	
 					this.visiblecontrol("LB5",false);
-
-					if (this.m_calling_state == 10 || m_prev_state == 51)//sequenceoption == 3)
-					{	// return to tender (apologies to E Presley)
+					//2016-09-09 SL - 5.002 - V4 to V5 Upgrade
+					if (this.m_calling_state == 10) {	// return to tender (apologies to E Presley)
 						gotcustomer = true;
 
 						newstate(10);
@@ -34524,6 +34650,11 @@ namespace epos {
 								// more than 5 change, print credit_note
 								if (outstanding <= 0)
 								{
+									//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+									// SJL VOUCHER fix for fentons
+                                    //currentorder.VoucherVal += vouchval;
+									//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
+
 									outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.ChequeVal - currentorder.CashVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.DarVouch1Val - currentorder.DarVouch2Val;
 
 									decimal lastmyVoucherVal = 0.0m;
@@ -35314,12 +35445,83 @@ namespace epos {
 								hdg6waserror = true; beep();
 								return;
 							}
+							//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
 							if (discres == 4)
 							{
-								changetext("L_HDG6", "error adding part");
+								changetext("L_HDG6", st1[15]);
 								hdg6waserror = true; beep();
 								return;
 							}
+							//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
+							currentorder.DiscountReason = "";
+							if (morderreason == "" && orderdiscountreason)
+							{
+								changetext("L_HDG6", "Reason required");
+								hdg6waserror = true; beep();
+								return;
+							}
+							if (newdiscount > 0 && orderdiscountreason)
+								currentorder.DiscountReason = morderreason;
+
+							discperc = newdiscount;
+							if (eventname != "NOCASCADE")
+							{
+								if (!this.CalculateCascasingDiscount(id, currentorder, discperc))
+								{
+									changetext("L_HDG6", st1[41].Replace("ZZ", id.MaxDiscPC.ToString()));
+									focuscontrol("EB1");
+									hdg6waserror = true; beep();
+									discperc = 0;
+									return;
+								}
+								//TODO: re write but work out if it goesover max for an empl!!!! TODOMONDAY 
+								currentorder.DiscountVal = 0.00M;
+								currentorder.DiscPercent = 0.00M;
+								newdiscount = 0.00M;
+								outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal - currentorder.DarVouch1Val - currentorder.DarVouch2Val;
+								this.m_item_val = outstanding.ToString("F02");
+							}
+							else
+							{
+								newdiscount = Decimal.Round((newdiscount * CalculateGrossToDiscount(id, currentorder) / 100.0M), 2);
+							}
+						}
+						else
+						{
+							newdiscount = Decimal.Round(Convert.ToDecimal(txt), 2);
+							discperc = 0.0M;
+						}
+						if ((newdiscount >= 0) && (newdiscount <= currentorder.TotVal))
+						{
+							int discres = checkdiscount(id, currentorder, -1, newdiscount, discperc, (eventname == "STAFF"));
+							if (discres == 1)
+							{
+								ordDiscount = newdiscount;
+
+								m_calling_state = 39;
+								openingtill = false;
+								newstate(27);
+								return;
+							}
+							if (discres == 2)
+							{
+								changetext("L_HDG6", st1[40]);
+								hdg6waserror = true; beep();
+								return;
+							}
+
+							if (discres == 3)
+							{
+								changetext("L_HDG6", st1[41].Replace("ZZ", ""));
+								hdg6waserror = true; beep();
+								return;
+							}
+                            if (discres == 4)
+                            {
+                                changetext("L_HDG6", "error adding part");
+                                hdg6waserror = true; beep();
+                                return;
+                            }
 
 							currentorder.DiscountVal = newdiscount;
 							currentorder.DiscPercent = discperc;
@@ -37421,19 +37623,109 @@ namespace epos {
 			return;
 		}
 		#endregion
-		#region state90 Display Web Page
+		//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+		#region state90 Select Line Store and Bin
 		private void processstate_90(stateevents eventtype, string eventname, int eventtag, string eventdata)
 		{
+			int idx = 0;
+			string txt = "";
+			int previouslySelected = -1;
 			if (eventtype == stateevents.functionkey)
 			{
-				if ((eventdata == "BACK") || (eventdata == "ESC"))
+				if (eventdata == "SELECT")
 				{
-					newstate(m_prev_state);
+					try
+					{
+						idx = lb1[3].SelectedIndex;
+						if (idx > -1 && selectedLine > -1)
+						{
+							if (currentorder.lns[selectedLine].SelectedStore > -1)
+								previouslySelected = currentorder.lns[selectedLine].SelectedStore;
+
+							currentorder.lns[selectedLine].SelectedStore = -1;
+
+							if (previouslySelected == selectedLine)
+							{
+								currentorder.lns[selectedLine].Store = "";
+								currentorder.lns[selectedLine].Bin = "";
+								currentorder.lns[selectedLine].SelectedStore = -1;
+								currentorder.lns[selectedLine].SaleType = 0;
+							}
+							else
+							{
+								currentorder.lns[selectedLine].Store = stockbinsearchres.lns[idx].Store;
+								currentorder.lns[selectedLine].Bin = stockbinsearchres.lns[idx].Bin;
+								currentorder.lns[selectedLine].SelectedStore = idx;
+								currentorder.lns[selectedLine].SaleType = 4;
+							}
+							previouslySelected = -1;
+
+							lb1[3].Items.Clear();
+							for (int idx2 = 0; idx2 < stockbinsearchres.NumLines; idx2++)
+							{
+								if (currentorder.lns[selectedLine].SelectedStore == idx2)
+									txt = pad(stockbinsearchres.lns[idx2].SiteDescription, 16) + " " + pad(stockbinsearchres.lns[idx2].Store, 10) + " " + pad(stockbinsearchres.lns[idx2].Bin, 10) + " " + rpad(stockbinsearchres.lns[idx2].Qty.ToString(), 5) + " *";
+								else
+									txt = pad(stockbinsearchres.lns[idx2].SiteDescription, 16) + " " + pad(stockbinsearchres.lns[idx2].Store, 10) + " " + pad(stockbinsearchres.lns[idx2].Bin, 10) + " " + rpad(stockbinsearchres.lns[idx2].Qty.ToString(), 5) + "  ";
+
+								lb1[3].Items.Add(txt);
+							}
+							lb1[3].SelectedIndex = idx;
+						}
+					}
+					catch {
+					}
+					return;
 				}
+				if (eventdata == "TENDER")
+				{
+					try
+					{
+						lb1[3].Items.Clear();
+						processstate_4(stateevents.functionkey, "", 0, "TENDER");
+					}
+					catch { }
+					return;
+				}
+				if (eventdata == "PRINTSTOCK")
+				{
+					try
+					{
+						printpopup(true);
+						printstocklist();
+						printpopup(false);
+					}
+					catch { }
+
+				}
+				if (eventdata == "ESC" || eventdata == "CANCEL")
+				{
+					// BLANK STORE/BIN TO RETURN TO DEFAULTS
+					currentorder.lns[selectedLine].Store = "";
+					currentorder.lns[selectedLine].Bin = "";
+					currentorder.lns[selectedLine].SaleType = 0;
+					currentorder.lns[selectedLine].SelectedStore = -1;
+
+					//lb1[3].Items.Clear();
+					//for (int idx2 = 0; idx2 < stockbinsearchres.NumLines; idx2++)
+					//{
+					//	// ALL ARE SOLD AS SHOP
+					//	txt = pad(stockbinsearchres.lns[idx2].SiteDescription, 16) + " " + pad(stockbinsearchres.lns[idx2].Store, 10) + " " + pad(stockbinsearchres.lns[idx2].Bin, 10) + " " + rpad(stockbinsearchres.lns[idx2].Qty.ToString(), 5) + " ";
+					//	lb1[3].Items.Add(txt);
+					//}
+                    newstate(m_prev_state);
+				}
+				if (eventdata == "BACK" || eventdata == "RETURN")
+                {
+					lb1[3].Items.Clear();
+					// KEEP SETTINGS AND RETURN
+					newstate(m_prev_state);
+                }
 			}
 			return;
 		}
 		#endregion
+		//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 		#region state91 Update Current Customer
 		private void processstate_91(stateevents eventtype, string eventname, int eventtag, string eventdata)
 		{
@@ -41808,70 +42100,71 @@ namespace epos {
 			{
 			}
 		}
-//        private bool SagePayCardProcess(decimal value)
-//        {
-//            bool acceptCard = false; ;
-//            try
-//            {
-//                int transAmount;// = Decimal.ToInt32(value);
-//                INTEGRAL_TRANSACTIONTYPE transType = INTEGRAL_TRANSACTIONTYPE.INT_TT_SALE;
+		//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+//		private bool SagePayCardProcess(decimal value)
+//		{
+//			bool acceptCard = false; ;
+//			try
+//			{
+//				int transAmount;// = Decimal.ToInt32(value);
+//				INTEGRAL_TRANSACTIONTYPE transType = INTEGRAL_TRANSACTIONTYPE.INT_TT_SALE;
 
-//                if (value < 0)
-//                {
-//                    transType = INTEGRAL_TRANSACTIONTYPE.INT_TT_REFUND;
-//                    transAmount = Decimal.ToInt32(-value * 100); // switch to pos+
-//                }
-//                else
-//                    transAmount = Decimal.ToInt32(value * 100);
+//				if (value < 0)
+//				{
+//					transType = INTEGRAL_TRANSACTIONTYPE.INT_TT_REFUND;
+//					transAmount = Decimal.ToInt32(-value * 100); // switch to pos+
+//				}
+//				else
+//					transAmount = Decimal.ToInt32(value * 100);
 
-//                if(transAmount < 0)
-//                {
-//                    return false;
-//                }
+//				if(transAmount < 0)
+//				{
+//					return false;
+//				}
                 
-//                IntegralCcAddin.TTransactionHook transHook = new IntegralCcAddin.TTransactionHook();
-//                IntegralCcAddin.TTillInformation tillInfo = new IntegralCcAddin.TTillInformation();
-//                IntegralCcAddin.TTransactionInfo transInfo = new IntegralCcAddin.TTransactionInfo();
+//				IntegralCcAddin.TTransactionHook transHook = new IntegralCcAddin.TTransactionHook();
+//				IntegralCcAddin.TTillInformation tillInfo = new IntegralCcAddin.TTillInformation();
+//				IntegralCcAddin.TTransactionInfo transInfo = new IntegralCcAddin.TTransactionInfo();
 
-//                tillInfo.strMerchantName = creditcardaccountid;
-//                tillInfo.strAddressLine1 = addr1.TrimStart();
-//                tillInfo.strAddressLine2 = addr2.TrimStart();
-//                tillInfo.strAddressLine3 = addr3.TrimStart();
-//                tillInfo.strReceiptNumber = currentorder.OrderNumber;
-//                tillInfo.strStoreNumber = id.TillNumber;
-//                tillInfo.strTillNumber = id.TillNumber;
+//				tillInfo.strMerchantName = creditcardaccountid;
+//				tillInfo.strAddressLine1 = addr1.TrimStart();
+//				tillInfo.strAddressLine2 = addr2.TrimStart();
+//				tillInfo.strAddressLine3 = addr3.TrimStart();
+//				tillInfo.strReceiptNumber = currentorder.OrderNumber;
+//				tillInfo.strStoreNumber = id.TillNumber;
+//				tillInfo.strTillNumber = id.TillNumber;
 
-//                acceptCard = transHook.Process3(transType, transAmount, currentorder.OrderNumber, ref tillInfo, ref transInfo);
+//				acceptCard = transHook.Process3(transType, transAmount, currentorder.OrderNumber, ref tillInfo, ref transInfo);
 
-//                //wrong pin --  handled on Guardian
-//                //cancel
+//				wrong pin --  handled on Guardian
+//				cancel
 
 //#if PRINT_TO_FILE
-//                zdebug("tillInfo.strMerchantName" + tillInfo.strMerchantName);
-//                zdebug("transInfo.strAuthorisationCode" + transInfo.strAuthorisationCode);
-//                zdebug("transInfo.strCurrencyCode" + transInfo.strCurrencyCode);
-//                zdebug("transInfo.strCustomerReceipt" + transInfo.strCustomerReceipt);
-//                zdebug("transInfo.strCustomerRegNo" + transInfo.strCustomerRegNo);
-//                zdebug("transInfo.strEmvAppicationId" + transInfo.strEmvAppicationId);
-//                zdebug("transInfo.strEmvAppicationLabel" + transInfo.strEmvAppicationLabel);
-//                zdebug("transInfo.strMerchantNo" + transInfo.strMerchantNo);
-//                zdebug("transInfo.strPanFirst6Digits" + transInfo.strPanFirst6Digits);
-//                zdebug("transInfo.strPanLast4Digits" + transInfo.strPanLast4Digits);
-//                zdebug("transInfo.strSchemeName" + transInfo.strSchemeName);
-//                zdebug("transInfo.strTerminalId" + transInfo.strTerminalId);
-//                zdebug("transInfo.strToken" + transInfo.strToken);
+//				zdebug("tillInfo.strMerchantName" + tillInfo.strMerchantName);
+//				zdebug("transInfo.strAuthorisationCode" + transInfo.strAuthorisationCode);
+//				zdebug("transInfo.strCurrencyCode" + transInfo.strCurrencyCode);
+//				zdebug("transInfo.strCustomerReceipt" + transInfo.strCustomerReceipt);
+//				zdebug("transInfo.strCustomerRegNo" + transInfo.strCustomerRegNo);
+//				zdebug("transInfo.strEmvAppicationId" + transInfo.strEmvAppicationId);
+//				zdebug("transInfo.strEmvAppicationLabel" + transInfo.strEmvAppicationLabel);
+//				zdebug("transInfo.strMerchantNo" + transInfo.strMerchantNo);
+//				zdebug("transInfo.strPanFirst6Digits" + transInfo.strPanFirst6Digits);
+//				zdebug("transInfo.strPanLast4Digits" + transInfo.strPanLast4Digits);
+//				zdebug("transInfo.strSchemeName" + transInfo.strSchemeName);
+//				zdebug("transInfo.strTerminalId" + transInfo.strTerminalId);
+//				zdebug("transInfo.strToken" + transInfo.strToken);
 
-//                currentorder.TransactRef = transInfo.strToken;
+//				currentorder.TransactRef = transInfo.strToken;
 //#endif
-//                Thread.Sleep(500);
-//                return acceptCard;
-//            }
-//            catch
-//            {
-//                return false;
-//            }
-//        }
-
+//				Thread.Sleep(500);
+//				return acceptCard;
+//			}
+//			catch
+//			{
+//				return false;
+//			}
+//		}
+		//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 		#endregion // creditcard
 
 		#region print
@@ -45300,7 +45593,7 @@ namespace epos {
 				line = "Assistant	  Number of	 Value of";
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset += lineincr;
-				line = "No   Name	 Transactions	  Sales";
+				line = "No   Name     Transactions      Sales";
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset += lineincr;
 				line = "-------------------------------------";
@@ -45369,7 +45662,7 @@ namespace epos {
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset += lineincr * 2;
 
-				line = "Method		Transactions	  Value";
+				line = "Method        Transactions      Value";
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset += lineincr;
 				line = "-------------------------------------";
@@ -45426,7 +45719,7 @@ namespace epos {
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset += lineincr * 2;
 
-				line = "Method		Transactions	  Value";
+				line = "Method        Transactions      Value";
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset += lineincr;
 				line = "-------------------------------------";
@@ -45462,7 +45755,7 @@ namespace epos {
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset += lineincr * 2;
 
-				line = "Type							Value";
+				line = "Type                            Value";
 				erc5 = TextOut(hdc,5,yoffset,line,line.Length);
 				yoffset += lineincr;
 				line = "-------------------------------------";
@@ -46400,7 +46693,144 @@ namespace epos {
 			}	// end lock
 			return;
 		}
+		//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
+		private void printstocklist()
+		{
+			bool erc5;
+			int erc;
+			string line;
+			IntPtr hfontControl;
+			IntPtr hdc = CreateDC("WINSPOOL", printername, "", 0);
+			int lineincr = 25;
+			int RASTERCAPS = 38;
+			int LOGPIXELSX = 88;
 
+
+			int devcaps = GetDeviceCaps(hdc, RASTERCAPS);
+			int ppi = GetDeviceCaps(hdc, LOGPIXELSX);
+
+			lineincr = ppi / 10;
+
+			if (printerppi != 0)
+			{
+				ppi = printerppi;
+				lineincr = printerlineincr;
+			}
+
+			int yoffset = 0;
+
+			int erc3 = StartDoc(hdc, 0);
+#if PRINT_TO_FILE
+			// Create a writer for printing receipt to text file in trace.
+			StartDebugReceipt();
+#endif
+
+			IntPtr hfontPrint = CreateFont((ppi / 10), 0, 0, 0, printerweight, 0, 0, 0, DEFAULT_CHARSET, OUT_DEVICE_PRECIS, CLIP_EMBEDDED, DEFAULT_QUALITY, FIXED_PITCH, printerfont);
+			hfontControl = CreateFont(20, 0, 0, 0, 400, 0, 0, 0, DEFAULT_CHARSET, OUT_DEVICE_PRECIS, CLIP_EMBEDDED, DEFAULT_QUALITY, FIXED_PITCH, printercontrolfont);
+
+			int erc4 = SelectObject(hdc, hfontPrint);
+
+			if (currentorder.OrderNumber == "")
+				erc = elucid.genord(id, currentorder);
+
+			yoffset += lineincr;
+			line = CentraliseText(40, st1[74]);
+			erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+
+			if (currentcust.Customer != id.CashCustomer && currentcust.Customer != "")
+			{
+				yoffset += lineincr;
+				line = CentraliseText(40, "Customer: " + currentcust.Customer);
+				erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+			}
+
+			yoffset += lineincr;
+			line = CentraliseText(40, "Order Number: " + currentorder.OrderNumber);
+			erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+
+			if (currentorder.NumLines > 0)
+			{
+				yoffset += lineincr * 2;
+				line = pad("Product", 13) + " " + pad("Store/Bin", 16) + " " + rpad("Qty", 9);
+				erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+			}
+			for (int ordloop = 0; ordloop < currentorder.NumLines; ordloop++)
+			{
+				currentpart.PartNumber = currentorder.lns[ordloop].Part;
+				if (currentorder.NumLines > 0)
+				{
+					stockbinsearchres.NumLines = 0;
+					erc = elucid.searchstockbin(id, currentpart, stockbinsearchres, "");
+					if (erc == 0)
+					{
+						if (stockbinsearchres.NumLines > 0)
+						{
+							for (int stockloop = 0; stockloop < stockbinsearchres.NumLines; stockloop++)
+							{
+								if (stockloop == 0)
+								{
+									yoffset += lineincr * 2;
+									line = pad(currentorder.lns[ordloop].Part, 13) + " " + pad(stockbinsearchres.lns[stockloop].Store + "/" + stockbinsearchres.lns[stockloop].Bin, 16) + " " + rpad(stockbinsearchres.lns[stockloop].Qty.ToString(), 9);
+								}
+								else
+								{
+									yoffset += lineincr;
+									line = pad(" ", 13) + " " + pad(stockbinsearchres.lns[stockloop].Store + "/" + stockbinsearchres.lns[stockloop].Bin, 16) + " " + rpad(stockbinsearchres.lns[stockloop].Qty.ToString(), 9);
+								}
+								erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+							}
+						}
+						else
+						{
+							yoffset += lineincr * 2;
+							line = pad(currentorder.lns[ordloop].Part, 13) + " " + pad("No stock found", 16);// +" " + pad(stockbinsearchres.lns[stockloop].Store + "/" + stockbinsearchres.lns[stockloop].Bin, 16) + " " + rpad(stockbinsearchres.lns[stockloop].Qty.ToString(), 9);
+							erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+						}
+					}
+				}
+			}
+
+			yoffset += lineincr * 2;
+			if (usefullname == 1)
+				line = "OP:" + id.UserName + " " + id.UserFirstName + " " + id.UserSurname;
+			else if (usefullname == 2)
+				line = "TEAM MEMBER: " + id.UserFirstName;
+			else if (usefullname == 3)
+				line = "Served By: " + id.UserFirstName + " " + id.UserSurname;
+			else
+				line = "OP:" + id.UserFirstName;
+
+			erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+			yoffset += lineincr * 2;
+
+			line = pad(DateTime.Now.ToShortDateString() + " " + DateTime.Now.ToLongTimeString(), 20);
+			erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+			yoffset += lineincr * 3;
+
+			int erc6;
+
+			if ((ppi < 300) && (nocut == false))
+			{	// dont use for laser printers
+				erc6 = EndDoc(hdc);
+				erc3 = StartDoc(hdc, 0);
+
+				erc4 = SelectObject(hdc, hfontControl);
+				erc5 = TextOut(hdc, 0, 0, "P", 1);	// cut paper
+			}
+
+			erc6 = EndDoc(hdc);
+#if PRINT_TO_FILE
+			// Close a writer for printing receipt to text file.
+			EndDebugReceipt();
+#endif
+			bool erc7 = DeleteObject(hfontPrint);
+			erc7 = DeleteObject(hfontControl);
+
+			bool erc8 = DeleteDC(hdc);
+
+			return;
+		}
+		//2016-09-09 SL - 5.002 - V4 to V5 Upgrade ^^
 		#endregion // print
 
 		#region debug

@@ -10,7 +10,6 @@ using System.Threading;
 using System.Collections;
 using eposxml;
 
-
 namespace epos
 {
 	/// <summary>
@@ -18,10 +17,7 @@ namespace epos
 	/// </summary>
 	public class elucidxml
 	{
-
-
-		[DllImport("ulink.dll", CharSet=CharSet.Ansi
-																						  )]
+		[DllImport("ulink.dll", CharSet=CharSet.Ansi)]
 		protected static extern int call_uniface(
 			string program,
 			string code_type,
@@ -40,7 +36,6 @@ namespace epos
 		public const string CR = "\r";
 
 		private string tracedirectory;
-
 
 		#region createxmlutilities
 
@@ -170,9 +165,10 @@ namespace epos
 
 		}
 
-		#endregion
+		#endregion // sendingxml
 
 		#region xmlcreation
+
 		#region create_login_xml
 		string create_login_xml(instancedata id)
 		{
@@ -270,8 +266,8 @@ namespace epos
 			return outxml;
 		}
 		#endregion
-		#region create_till_xml
-		string create_till_xml(instancedata id)
+        #region create_till_xml
+        string create_till_xml(instancedata id)
 		{
 			string outxml = xmlhdr();
 			
@@ -472,8 +468,26 @@ namespace epos
 			outxml = outxml + startxml("OrderRecipient");
 			outxml = outxml + xmlelement("RecipientDelivery","1");			
 			outxml = outxml + xmlelement("RecipientRequestDate","");			
-			outxml = outxml + xmlelement("RecipientDeliveryDate","");			
-			outxml = outxml + xmlelement("RecipientAddressRef",ord.OrderNumber);			
+			outxml = outxml + xmlelement("RecipientDeliveryDate","");
+
+			string addressRef = cust.CustRef;
+
+			if (addressRef == "MAIN")
+			{
+				// use MAIN existing address
+				outxml = outxml + xmlelement("RecipientAddressRef", "");
+			}
+			else if (addressRef == "NEW")
+			{
+				// use MAIN existing address
+				outxml = outxml + xmlelement("RecipientAddressRef", ord.OrderNumber);
+			}
+			else
+			{
+				// use new/other address: order number as reference
+				outxml = outxml + xmlelement("RecipientAddressRef", addressRef);
+			}
+
 			//			outxml = outxml + xmlelement("RecipientAddressRef","");	
 			if (ord.CollectionType == "Normal") {
 				if ((ord.OrdCarrier == "") && (ord.DelMethod == "")) {
@@ -502,7 +516,7 @@ namespace epos
 			outxml = outxml + xmlelement("RecipientInitials",cust.DelInitials);			
 			outxml = outxml + xmlelement("RecipientSurname",cust.DelSurname);			
 			outxml = outxml + xmlelement("RecipientJobTitle","");			
-			outxml = outxml + xmlelement("RecipientCompany","");			
+			outxml = outxml + xmlelement("RecipientCompany",cust.DelCompanyName);			
 			outxml = outxml + xmlelement("RecipientAddressDesc","");			
 			outxml = outxml + xmlelement("RecipientAddressLine",cust.DelAddress);			
 			outxml = outxml + xmlelement("RecipientCity",cust.DelCity);			
@@ -921,11 +935,31 @@ namespace epos
 			return create_user_xml(id);
 		}
 		#endregion
-		#endregion
+        #region create_cust_addresses
+        string create_cust_addresses(instancedata id, custdata cust)
+        {
+            string outxml = xmlhdr();
 
-		#region transaction routines
-		#region login
-		public int login(instancedata id, bool super)
+            outxml = outxml + startxml("POS_CUST_ADDR_IN");
+            outxml = outxml + startxml("POS_DATA_IN.XMLDB");
+
+            outxml = outxml + xmlelement("CUSTOMER", cust.Customer);
+            outxml = outxml + xmlelement("USER_NAME", id.UserName);
+
+            outxml = outxml + endxml("POS_DATA_IN.XMLDB");
+			outxml = outxml + endxml("POS_CUST_ADDR_IN");
+            outxml = outxml.Replace("&", "&amp;");
+
+            return outxml;
+		}
+		#endregion // create_cust_addresses
+
+		#endregion // xmlcreation
+
+        #region transaction routines
+
+        #region login
+        public int login(instancedata id, bool super)
 		{
 			int idx;
 			string outxml;
@@ -1173,17 +1207,37 @@ namespace epos
 				LResult.LoadXml(inxml2);
 				root = LResult.DocumentElement;
 
+				bool reasonPrice = false;
+				int priceCount = 0;
+				bool reasonDiscount = false;
+				int discountCount = 0;
+
 				ttl = root.SelectNodes("REAS_CODE.PSEDB");
 
 				for (idx = 0; idx < ttl.Count; idx++)
 				{
 					title = ttl.Item(idx);
-					id.strarray4[idx] = title.SelectSingleNode("DESCR").InnerXml.Replace("&amp;","&") + " - " + title.SelectSingleNode("REASON").InnerXml.Replace("&amp;","&");
-					id.strcount4 = idx + 1;
+
+					reasonPrice = (title.SelectSingleNode("PRICE").InnerXml == "T");
+					reasonDiscount = (title.SelectSingleNode("DISCOUNT").InnerXml == "T");
+
+					if (reasonPrice)
+					{
+						id.strarray4[priceCount] = title.SelectSingleNode("DESCR").InnerXml.Replace("&amp;", "&") + " - " + title.SelectSingleNode("REASON").InnerXml.Replace("&amp;", "&");
+						priceCount++;
+						id.strcount4 = priceCount;
+					}
+					if (reasonDiscount)
+					{
+						id.strarray5[discountCount] = title.SelectSingleNode("DESCR").InnerXml.Replace("&amp;", "&") + " - " + title.SelectSingleNode("REASON").InnerXml.Replace("&amp;", "&");
+						discountCount++;
+						id.strcount5 = discountCount;
+					}
+
+
 				}
-				id.strcount4 = ttl.Count;
-
-
+				//id.strcount4 = ttl.Count;
+				//id.strcount5 = ttl.Count;
 			}
 			catch (Exception)
 			{
@@ -1191,14 +1245,11 @@ namespace epos
 				id.ErrorMessage = "Reason Code Error";
 				return -99;
 			}
-
 			
 			return id.Status;
 
 		}
-		
-
-		#endregion
+		#endregion // login
 		#region generate order number
 		public int genord(instancedata id,orderdata ord)
 		{
@@ -1236,7 +1287,6 @@ namespace epos
 
 			try
 			{
-
 				ord.OrderNumber = child.SelectSingleNode("ORDER_NUMBER").InnerXml;
 			}
 			catch (Exception)
@@ -1510,8 +1560,7 @@ namespace epos
 
 			try
 			{
-
-					while (idx < 200)
+				while (idx < 200)
 				{
 					res.lns[idx].PartNumber = child.SelectSingleNode("PART").InnerXml;
 					res.lns[idx].Description = child.SelectSingleNode("DESCR").InnerXml;
@@ -1561,10 +1610,6 @@ namespace epos
 						res.lns[idx].Medical = (part_lev3.SelectSingleNode("TAX_CODE").InnerXml == "T");
 
 						part_lev2 = child.SelectSingleNode("PART_POSD.PSEDB");
-
-
-
-
 
 						part_lev2 = child.SelectSingleNode("PART_SCPT.PSEDB");
 						part.Script = part_lev2.SelectSingleNode("ACTIVITY_SUMMARY").InnerXml;
@@ -1746,7 +1791,6 @@ namespace epos
 			}
 			return id.Status;
 		}
-
 		#endregion
 		#region orderadd
 		public int orderadd(instancedata id,custdata cust, orderdata ord)
@@ -1836,7 +1880,6 @@ namespace epos
 			return (id.Status);
 
 		}
-
 		#endregion
 		#region tillskim
 		public int tillskim(instancedata id)
@@ -1867,7 +1910,6 @@ namespace epos
 			return (0);
 
 		}
-
 		#endregion
 		#region tillcancel
 		public int tillcancel(instancedata id)
@@ -1896,7 +1938,6 @@ namespace epos
 			return (0);
 
 		}
-
 		#endregion
 		#region searchcust
 		public int searchcust(instancedata id, custdata cust, custsearch res)
@@ -2031,9 +2072,7 @@ namespace epos
 						res.lns[idx].Medical = false;
 					}
 
-
 //					res.lns[idx].Medical = true;
-
 
 					try {
 						cust_lev2 = child.SelectSingleNode("CUST_PNTS.PSEDB");
@@ -2048,7 +2087,6 @@ namespace epos
 						res.lns[idx].PointsValue = 0.00M;
 						res.lns[idx].PointsUsed = false;
 					}
-
 
 					res.lns[idx].VouchersHeld.Clear();
 					int vIDX = 1;
@@ -2069,9 +2107,7 @@ namespace epos
 					catch (Exception) {
 					}
 
-
 					idx++;
-
 
 					child = child.NextSibling;
 					if (child == null)
@@ -2138,7 +2174,6 @@ namespace epos
 			return (id.Status);
 
 		}
-
 		#endregion
 		#region calcmultibuydiscount
 		public decimal calcmultibuydiscount(instancedata id,custdata cust, orderdata ord, string prod_group)
@@ -2197,7 +2232,6 @@ namespace epos
 
 
 		}
-
 		#endregion
 		#region cust_notes
 		public string cust_notes(instancedata id,custdata cust)
@@ -2274,7 +2308,6 @@ namespace epos
 
 
 		}
-
 		#endregion
 		#region getorderfromreceipt
 		public int getorderfromreceipt(instancedata id, string receipt, custdata cust, orderdata  ord) {
@@ -2497,7 +2530,9 @@ namespace epos
 					id.Status = -1;
 					return id.Status;
 				}
-			} else {
+			}
+			else
+			{
 #if GETMENU
 				return id.Status;
 #else
@@ -2525,9 +2560,6 @@ namespace epos
 	//			return (id.Status);
 #endif
 			}
-
-
-
 
 			try {
 
@@ -2562,12 +2594,15 @@ namespace epos
 					}
 
 					
-					
+
 					try {
 						part_psedb = line.SelectSingleNode("PART.PSEDB");
-						try {
+						try
+						{
 							price = Convert.ToDecimal(part_psedb.SelectSingleNode("PRICE").InnerXml);
-						} catch {
+						}
+						catch
+						{
 							price = 0.00M;
 						}
 
@@ -2700,14 +2735,143 @@ namespace epos
 			return id.Status;
 		
 		}
+        #endregion
+        #region cust_addresses
+        public int getcust_addresses(instancedata id, custdata cust, custsearch res)
+        {
+            string outxml;
+            string inxml;
+            int status_ret;
+            string errmsg_ret;
+			string AddressRef;
+            string strTemp;
+			string strHouse;
+            int idx;
+
+            XmlDocument LResult;
+            XmlElement root;
+            XmlNode CustomerAddressLines;
+			XmlNode CustomerDetail;
+			id.ErrorNumber = 0;
+            id.ErrorMessage = "";
+
+            outxml = create_cust_addresses(id, cust);
+
+			id.Status = sendxml("POS", "19", "PSS019", outxml, true, out inxml, out status_ret, out errmsg_ret);
+
+			id.ErrorNumber = status_ret;
+			id.ErrorMessage = errmsg_ret;
+			if (id.Status != 0)	// dont try to decipher xml if error
+				return (id.Status);
 
 
-#endregion
+			LResult = new XmlDocument();
+			LResult.LoadXml(inxml);
+			root = LResult.DocumentElement;
 
-		#endregion
+			CustomerDetail = root.SelectSingleNode("CUST.PSEDB");
+			
+			idx = res.NumLines;
 
-		#region debug
-		public void debugxml(string inxml, bool error)
+			CustomerAddressLines = CustomerDetail.SelectSingleNode("CUST_ADDR.PSEDB");
+
+			while (idx < 200)
+			{
+				try
+				{
+					res.lns[idx].Customer = CustomerDetail.SelectSingleNode("CUSTOMER").InnerXml;
+					res.lns[idx].Title = CustomerDetail.SelectSingleNode("TITLE").InnerXml;
+					res.lns[idx].Surname = (CustomerDetail.SelectSingleNode("FULL_NAME").InnerXml).Replace("&amp;", "&");
+					res.lns[idx].Initials = CustomerDetail.SelectSingleNode("INITIALS").InnerXml;
+
+					if (CustomerAddressLines != null)
+					{
+						try
+						{
+							AddressRef = CustomerAddressLines.SelectSingleNode("ADDRESS_REF").InnerXml;
+
+							if (AddressRef != "MAIN")
+							{
+								//if not main address thren use main address for invoice address.
+								res.lns[idx].County = cust.County;
+								res.lns[idx].CompanyName = cust.CompanyName;
+								res.lns[idx].City = cust.City;
+								res.lns[idx].PostCode = cust.PostCode;
+								res.lns[idx].Address = cust.Address;
+								res.lns[idx].CountryCode = cust.CountryCode;
+								res.lns[idx].CustRef = AddressRef;
+							}
+							else
+							{
+								res.lns[idx].County = CustomerAddressLines.SelectSingleNode("COUNTY").InnerXml;
+								res.lns[idx].CompanyName = (CustomerAddressLines.SelectSingleNode("ORGANISATION").InnerXml).Replace("&amp;", "&");
+								res.lns[idx].City = CustomerAddressLines.SelectSingleNode("CITY").InnerXml;
+								res.lns[idx].PostCode = CustomerAddressLines.SelectSingleNode("POSTCODE").InnerXml;
+								strHouse = CustomerAddressLines.SelectSingleNode("HOUSE").InnerXml;
+								strTemp = (CustomerAddressLines.SelectSingleNode("ADDRESS").InnerXml).Replace("&amp;", "&");
+								strTemp = strTemp.Replace("\r", CRLF);
+								if (strHouse != "")
+									strTemp += strHouse + " " + strTemp;
+								res.lns[idx].Address = strTemp;
+								res.lns[idx].CountryCode = CustomerAddressLines.SelectSingleNode("COUNTRY").InnerXml;
+								res.lns[idx].CustRef = AddressRef;
+							}							
+							
+							res.lns[idx].DelCounty = CustomerAddressLines.SelectSingleNode("COUNTY").InnerXml;
+							res.lns[idx].DelCompanyName = (CustomerAddressLines.SelectSingleNode("ORGANISATION").InnerXml).Replace("&amp;", "&");
+							res.lns[idx].DelCity = CustomerAddressLines.SelectSingleNode("CITY").InnerXml;
+							res.lns[idx].DelPostCode = CustomerAddressLines.SelectSingleNode("POSTCODE").InnerXml;
+							strHouse = CustomerAddressLines.SelectSingleNode("HOUSE").InnerXml;
+							strTemp = (CustomerAddressLines.SelectSingleNode("ADDRESS").InnerXml).Replace("&amp;", "&");
+							strTemp = strTemp.Replace("\r", CRLF);
+							if (strHouse != "")
+								strTemp += strHouse + " " + strTemp;
+							res.lns[idx].DelAddress = strTemp;
+							res.lns[idx].DelCountryCode = CustomerAddressLines.SelectSingleNode("COUNTRY").InnerXml;
+
+							res.lns[idx].DelTitle = CustomerAddressLines.SelectSingleNode("TITLE.CUST_ADDR.PSEDB").InnerXml;
+							res.lns[idx].DelInitials = CustomerAddressLines.SelectSingleNode("INITIALS.CUST_ADDR.PSEDB").InnerXml;
+							res.lns[idx].DelSurname = CustomerAddressLines.SelectSingleNode("FULL_NAME.CUST_ADDR.PSEDB").InnerXml;							
+						}
+						catch
+						{
+						}
+					}					
+			
+					idx++;
+
+					CustomerAddressLines = CustomerAddressLines.NextSibling;
+					
+					if (CustomerAddressLines == null)
+						break;
+					
+					if (idx == 200)
+					{
+						break;
+					}
+				}
+				catch (Exception)
+				{
+					break;
+				}
+			}
+
+			if (idx > 199)
+			{
+				res.lns[idx].Surname = "More Data";
+				idx++;
+			}
+
+			res.NumLines = idx;
+
+			return id.Status;
+		}
+		#endregion // cust_addresses
+
+		#endregion // transaction routines
+
+        #region debug
+        public void debugxml(string inxml, bool error)
 		{
 			DateTime dt = DateTime.Now;
 			string path;
@@ -2803,13 +2967,7 @@ namespace epos
 			return;
 		}
 
-		#endregion
-
-
-
-
-
-
+		#endregion // debug
 
 		public elucidxml(string tracedir)
 		{

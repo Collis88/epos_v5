@@ -17,17 +17,18 @@ namespace epos
 	public class elucidxml : IDisposable
 	{
 		private bool _disposed;
-
-		[DllImport("ulink.dll", CharSet=CharSet.Ansi)]
-		protected static extern int call_uniface(
-			string program,
-			string code_type,
-			string reference,
-			string xml_in,
-			StringBuilder xml_out,
-			out int status_out,
-			StringBuilder errmsg_out
-			);
+		// 2016-09-20 - SL - V5, ulink NO LONGER USED >>
+		//[DllImport("ulink.dll", CharSet=CharSet.Ansi)]
+		//protected static extern int call_uniface(
+		//	string program,
+		//	string code_type,
+		//	string reference,
+		//	string xml_in,
+		//	StringBuilder xml_out,
+		//	out int status_out,
+		//	StringBuilder errmsg_out
+		//	);
+		// 2016-09-20 - SL - V5, ulink NO LONGER USED ^^
 		
 		public static DateTime lastcalltime = DateTime.MinValue;
 		public static double mincalldelay = 50.0;
@@ -41,7 +42,8 @@ namespace epos
 
 		private string xmlhdr()
 		{
-			return "<?xml version='1.0'?>" + CRLF;
+			//return "<?xml version='1.0'?>" + CRLF;
+			return "<?xml version=\"1.0\"?>" + CRLF;
 		}
 		private string startxml(string name)
 		{
@@ -49,7 +51,7 @@ namespace epos
 		}
 		private string endxml(string name)
 		{
-			return "</" + name + ">" + CRLF;
+			return "</" + name + ">" +CRLF;
 		}
 		private string xmlelement (string name, string valuex)
 		{
@@ -67,8 +69,8 @@ namespace epos
 			string xmlret="";
 			string errmsgret="";
 			int code_type_int = Convert.ToInt32(code_type);
-			//string xmldbg = "InputXml for call:" + code_type + " -->" + CRLF + "(" + xml_in + ")";
-			string xmldbg = "<!--InputXml for call:" + code_type + " -->" + CRLF + "(" + xml_in + ")-->";
+			string xmldbg = "InputXml for call:" + code_type + " -->" + CRLF + "(" + xml_in + ")";
+			//string xmldbg = "<!--InputXml for call:" + code_type + " -->" + CRLF + "(" + xml_in + ")-->";
 			try
 			{
 				// 2016-09-07 - SL - V2 -> V5 UPGRADE >>
@@ -79,15 +81,12 @@ namespace epos
 				UNIFACE_trh108.trh108 elucidObject = new UNIFACE_trh108.trh108();
 #endif
 #if TRH107
-				//UNIFACE_trh107.trh107 elucidObject = new UNIFACE_trh107.trh107();
 				UNIFACE_trh107.trh107 elucidObject = new UNIFACE_trh107.trh107();
 #endif
 #if TRH106
 				UNIFACE_trh106.trh106 elucidObject = new UNIFACE_trh106.trh106();
 #endif
 				// 2016-09-07 - SL - V2 -> V5 UPGRADE ^^
-
-
 
 				//				trh100Class uniapi = new trh100Class();
 
@@ -111,21 +110,12 @@ namespace epos
 				string errmsg_ret = "";
 				// 2016-09-08 - SL - V2 -> V5 UPGRADE ^^
 
-				//erc = call_uniface(program, code_type, reference, xml_in, xml_ret, out statusret, errmsg_ret);
 				erc = elucidObject.elucid_generic_api(program, code_type_int, reference, xml_in, out xml_ret, out statusret, out errmsg_ret);
-
-				//erc = uniapi.elucid_generic_api(program, code_type, reference, xml_in,out  xmlret, out statusret,out errmsgret);
-				//erc = uniapi.elucid_generic_api(program, code_type, reference, xml_in, xml_ret, out statusret, errmsg_ret);
-				//xmlret = xml_ret.ToString();
-				//errmsgret = errmsg_ret.ToString();
-				//erc = trhapi(1, program, code_type, reference, xml_in, xml_ret, out statusret, errmsg_ret);
-
 				xmlret = xml_ret.ToString();
 				errmsgret = errmsg_ret.ToString();
 
 				xml_out = xmlret;
 				xmldbg = xmldbg + "OutputXml->" + CRLF + "(" + xml_out + ")";
-				//debugxml(xml_out,false);
 				status_out = statusret;
 				errmsg_out = errmsgret;
 
@@ -169,7 +159,6 @@ namespace epos
 						debugxml(xmldbg, true, code_type);
 					erc = -999;
 				}
-
 			}
 			finally
 			{

@@ -40,7 +40,7 @@ namespace epos {
 
 	public class MainForm : System.Windows.Forms.Form
 	{
-		public static string Version = "EPoS Version 5.003";
+		public static string Version = "EPoS Version 5.004";
 
 		//2.973 -				JoJo cust SP functionality from v2
 		//2.974 -				JoJo MBL + fixes + IP Offline
@@ -53,7 +53,8 @@ namespace epos {
 		//5.000 -	2016-09-07	V2 to V5 Upgrade
 		//5.001 -	2016-09-07	V3 to V5 Upgrade
 		//5.002 -	2016-09-09	V4 to V5 Upgrade
-		//5.003	-	2016-09-14	Added TRH107 (Uniface9701)		
+		//5.003	-	2016-09-14	Added TRH107 (Uniface9701)
+		//5.004	-	2016-09-22	IF NO DISOUNT ALREADY ON THE LINE, CLEAR PARAM FOR PRICE CALL
 
 		public const int DIGIPOS_DRAWER_CMD = 0x48F;
 
@@ -10805,6 +10806,12 @@ namespace epos {
 								//// **** 2014-08-12 SJL **** // RE ADD THE PREVIOUS n% DISCOUNT
 							}
 						}
+						//2016-09-22 SL - IF NO DISOUNT ALREADY ON THE LINE, CLEAR PARAM FOR PRICE CALL >>
+						else
+						{
+							checkPricePart.DiscRequired = 0.0m;
+						}
+						//2016-09-22 SL - IF NO DISOUNT ALREADY ON THE LINE, CLEAR PARAM FOR PRICE CALL ^^
 						erc = elucid.validatepart(id, checkPricePart, currentcust, false);
 						if (erc == 0)
 						{
@@ -31232,8 +31239,7 @@ namespace epos {
 					tb1[0].Focus();
 
 					changetext("L_HDG6","Enter Qty");
-					return;
-					
+					return;					
 				}
 
 				if ((eventdata == "UP")	 && (lb1[2].SelectionMode != SelectionMode.MultiSimple)) { // arrow keys

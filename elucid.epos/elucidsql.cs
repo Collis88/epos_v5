@@ -100,6 +100,18 @@ namespace epos
 			outxml = outxml + xmlelement("NO_SMS", cust.NoSMS);
 			//outxml = outxml + xmlelement("NO_EXCH", cust.NoSMS);
 
+			//2016-11-02 SL - ADD E-RECEIPT(ERECEIPT) FIELD.
+			//if (cust.Medical)
+			//    outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "T");
+			//else
+			//    outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "F");
+
+			//2016-11-23 SL - MODIFY TO MATCH MAGENTO
+			if (cust.Medical)
+				outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "Y");
+			else
+				outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "");
+
 			//outxml = outxml + xmlelement("CUSTOMER_GEN_CODE", id.CustomerGenerateCode);
 			outxml = outxml + xmlelement("USER_NAME", id.UserName);
 			outxml = outxml + xmlelement("TILL_NUMBER", id.TillNumber);
@@ -131,6 +143,18 @@ namespace epos
 			outxml = outxml + xmlelement("NO_PHONE", cust.NoPhone);
 			outxml = outxml + xmlelement("NO_SMS", cust.NoSMS);
 			//outxml = outxml + xmlelement("NO_EXCH", cust.NoSMS);
+
+			//2016-11-02 SL - ADD E-RECEIPT FIELD.
+			//if (cust.Medical)
+			//    outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "T");
+			//else
+			//    outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "F");
+
+			//2016-11-23 SL - MODIFY TO MATCH MAGENTO
+			if (cust.Medical)
+				outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "Y");
+			else
+				outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "");
 
 			outxml = outxml + xmlelement("USER_NAME", id.UserName);
 			outxml = outxml + xmlelement("TILL_NUMBER", id.TillNumber);
@@ -287,7 +311,10 @@ namespace epos
 						res.lns[idx].Surname = (child.SelectSingleNode("FULL_NAME").InnerXml).Replace("&amp;", "&");
 						res.lns[idx].CompanyName = (child.SelectSingleNode("COMPANY_NAME").InnerXml).Replace("&amp;", "&");
 						strTemp = (child.SelectSingleNode("ADDRESS").InnerXml).Replace("&amp;", "&");
-						strTemp = strTemp.Replace("\r", CRLF);
+
+						// 2016-11-29 SL - NOT NEEDED WITH NEW STORED PROCEDURE >>
+						//strTemp = strTemp.Replace("\r", CRLF);
+
 						res.lns[idx].Address = strTemp;
 						res.lns[idx].City = child.SelectSingleNode("CITY").InnerXml;
 						res.lns[idx].PostCode = child.SelectSingleNode("POSTCODE").InnerXml;
@@ -398,7 +425,10 @@ namespace epos
 							cust_lev2 = child.SelectSingleNode("CUST_ATTR.PSEDB");
 
 							strTemp = cust_lev2.SelectSingleNode("MEDICAL_EXEMPTION").InnerXml;
-							res.lns[idx].Medical = (strTemp == "T");
+
+							//TO MATCH MAGENTO
+							//res.lns[idx].Medical = (strTemp == "T");
+							res.lns[idx].Medical = (strTemp == "Y");
 
 							try
 							{

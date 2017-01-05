@@ -18,6 +18,11 @@ using System.Diagnostics;
 using System.Data.SqlClient;
 using System.Text.RegularExpressions;
 
+#if DIRECTX
+using Microsoft.DirectX;
+using Microsoft.DirectX.AudioVideoPlayback;
+#endif
+
 namespace epos {
 	/// <summary>
 	/// Summary description for Form1.
@@ -40,31 +45,37 @@ namespace epos {
 
 	public class MainForm : System.Windows.Forms.Form
 	{
-		public static string Version = "EPoS Version 5.004";
+		public static string Version = "EPoS Version 5.007";
 
-		//2.973 -				JoJo cust SP functionality from v2
-		//2.974 -				JoJo MBL + fixes + IP Offline
-		//2.975	-				Axminster post go live issues
-		//2.976	-	2016-08-04	JoJo- Customer capture changes
-		//2.976 -	2016-08-04	Axminster- address update fix
-		//2.976 -	2016-08-08	Axminster- send blank site to stock view
-		//2.976 -	2016-08-16	JoJo- blank connection string as default
-		//2.976 -	2016-09-02	Axminster- fixes to issue 11 from SharePoint list.
-		//5.000 -	2016-09-07	V2 to V5 Upgrade
-		//5.001 -	2016-09-07	V3 to V5 Upgrade
-		//5.002 -	2016-09-09	V4 to V5 Upgrade
-		//5.003	-	2016-09-14	Added TRH107 (Uniface9701)
-		//5.004	-	2016-09-22	IF NO DISOUNT ALREADY ON THE LINE, CLEAR PARAM FOR PRICE CALL
+		//2.973	SL				JoJo cust SP functionality from v2
+		//2.974	SL				JoJo MBL + fixes + IP Offline
+		//2.975	SL				Axminster post go live issues
+		//2.976	SL	2016-08-04	JoJo- Customer capture changes
+		//2.976	SL	2016-08-04	Axminster- address update fix
+		//2.976	SL	2016-08-08	Axminster- send blank site to stock view
+		//2.976	SL	2016-08-16	JoJo- blank connection string as default
+		//2.976	SL	2016-09-02	Axminster- fixes to issue 11 from SharePoint list.
+		//5.000	SL	2016-09-07	V2 to V5 Upgrade
+		//5.001	SL	2016-09-07	V3 to V5 Upgrade
+		//5.002	SL	2016-09-09	V4 to V5 Upgrade
+		//5.003	SL	2016-09-14	Added TRH107 (Uniface9701)
+		//5.004	SL	2016-09-22	IF NO DISOUNT ALREADY ON THE LINE, CLEAR PARAM FOR PRICE CALL
+		//5.005	SL	2016-10-20	Axminster- Don't change kit price on order discount.
+		//5.006	SL	2016-11-02	JoJo- E-Reciept, add extra tick box
+		//5.006	SL	2016-11-08	Axminster- SharePoint Issue 17, zero price after part search
+		//5.006	SL	2016-11-08	JoJo- Add City field to update customer SQL.
+		//5.007	SL	2016-11-16	JoJo- Fix STAR TSP100 issue with larger text size
+		//5.008	SL	2016-12-01	Axminster- fixes to issue 18 from SharePoint list. (Cancel on Cheque screen)
 
 		public const int DIGIPOS_DRAWER_CMD = 0x48F;
 
 		private const int pbmax = 30;
 		private const int tbmax = 25;//20
 		private const int lbmax = 9;
-		private const int cbmax = 6;//5
+		private const int cbmax = 9;//5
 		private const int labmax = 66;//60
 		private const int stmax = 78;//64
-		private const int xbmax = 8;//5;
+		private const int xbmax = 9;//5;
 		private const int statemax = 99;
 		//private const int iniloopmax = 9;
 		private const int VeriFoneVoucherMax = 10;
@@ -938,13 +949,13 @@ namespace epos {
 		//private decimal m_nearestamount = 0.0m;
 		//private int outstandingParts = 0;
 
-#if DIRECTX
+#if DIRECTX || WMP
 		private SecondForm secondaryForm;
 		private Screen primaryScreen;
 		private Screen secondaryScreen;
 		private MovieForm secondVideoForm;
 		private static Object movieLock;
-#endif//DIRECTX
+#endif//DIRECTX || WMP
 
 		#endregion //local instance variables
 
@@ -1170,7 +1181,7 @@ namespace epos {
 			xdebug("12");
 
 			xdebug("13");
-#if DIRECTX
+#if DIRECTX || WMP
 			try
 			{
 				zdebug("14 pre");
@@ -1190,7 +1201,7 @@ namespace epos {
 			{
 				MessageBox.Show("MainForm: " + exc.Message);
 			}
-#endif //DIRECTX
+#endif //DIRECTX || WMP
 			xdebug("15");
 			zdebug("15");
 		}
@@ -1779,7 +1790,7 @@ namespace epos {
 			// odbcConnection1
 			// 
 			this.odbcConnection1.ConnectionString = "DSN=ELUCID;UID=sa;DATABASE=eluciddbv8;APP=Microsoft® Visual Studio .NET;WSID=VAIO" +
-				";PWD=saturn5a";
+    ";PWD=saturn5a";
 			// 
 			// PanelTouch
 			// 
@@ -2226,8 +2237,8 @@ namespace epos {
 			this.Text = "Elucid EPOS";
 			this.Activated += new System.EventHandler(this.MainForm_Activated);
 			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.MainForm_FormClosed);
-			this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MainForm_MouseDown);
 			this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.MainForm_KeyDown);
+			this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.MainForm_MouseDown);
 			this.panelKeypad.ResumeLayout(false);
 			this.PanelNotes.ResumeLayout(false);
 			this.PanelNotes.PerformLayout();
@@ -2374,7 +2385,6 @@ namespace epos {
 				MessageBox.Show(ex.Message);
 			}
 			return;
-
 		}
 
 		#region callback
@@ -6623,18 +6633,19 @@ namespace epos {
 					//	lb1[0].Refresh();
 					//if (newstate == 18)	// sjl: temporary fix to 'white text on mouse select //TODO: is this need here or in _18?
 					//	lb1[2].Refresh();
-#if DIRECTX
+//#if DIRECTX || WMP
 					try
 					{
-						zdebug("sec screen: " + newstate.ToString());
+						//2016-12-05 SL - COMMENT OUT DEBUG LOG
+						//zdebug("sec screen: " + newstate.ToString());
 						updateSecondaryScreen();
-						zdebug("sec screen post");
+						//zdebug("sec screen post");
 					}
 					catch (Exception exc)
 					{
 						MessageBox.Show("newstate snap: " + exc.Message);
 					}
-#endif //DIRECTX
+//#endif //DIRECTX || WMP
 
 					return;
 				}
@@ -6672,19 +6683,20 @@ namespace epos {
 				if (PanelNotes.Visible)
 					ButtonNotes.Focus();
 
-	#if DIRECTX
+#if DIRECTX || WMP
 				try
 				{
-					zdebug("newstate screen: " + newstate.ToString());
+					//2016-12-05 SL - COMMENT OUT DEBUG LOG
+					//zdebug("newstate screen: " + newstate.ToString());
 					updateSecondaryScreen();
-					zdebug("newstate post");
+					//zdebug("newstate post");
 				}
 				catch (Exception exc)
 				{
 					MessageBox.Show("newstate: " + exc.Message);
 				}
 
-	#endif //DIRECTX
+#endif //DIRECTX || WMP
 
 				m_state = newstate;
 			}
@@ -8149,8 +8161,7 @@ namespace epos {
 					}
 				}
 
-//				zdebug("004" + val + " " + currentcontrol.ToString());
-				
+//				zdebug("004" + val + " " + currentcontrol.ToString());				
 
 				Application.DoEvents();
 				SendKeys.Send(val);
@@ -8225,9 +8236,9 @@ namespace epos {
 		private string replacevars(string instring) {
 			string newstr = instring;
 
-#if DIRECTX
+#if DIRECTX || WMP
 			decimal outstanding = 0.0m;
-#endif
+#endif //DIRECTX || WMP
 
 			if (instring == "")
 				return "";
@@ -8321,7 +8332,7 @@ namespace epos {
 					newstr = newstr.Replace("$TASKS", outstandingParts.ToString("#") + " OUTSTANDING ORDERS.");
 				else
 					newstr = newstr.Replace("$TASKS", "");
-#if DIRECTX
+#if DIRECTX || WMP
 				try
 				{
 					if (secondaryForm != null)
@@ -8373,7 +8384,7 @@ namespace epos {
 					}
 				}
 				catch { }
-#endif
+#endif //DIRECTX || WMP
 				if (currencysymbol.Length == 0)
 					newstr = newstr.Replace("$PND", "£");
 				else
@@ -10950,6 +10961,9 @@ namespace epos {
 							currentorder.lns[idx].DocumentName = currentpart.DocumentName;
 							currentorder.lns[idx].ConsolidateGroup = currentpart.ConsolidateGroup;
 							currentorder.lns[idx].PartType = currentpart.PartType;
+							//2016-10-20 SL - Pass ElucidPrice into line - Axminster >>
+							currentorder.lns[idx].ElucidPrice = currentpart.ElucidPrice;
+							//2016-10-20 SL - Pass ElucidPrice into line - Axminster ^^
 
 							if (currentorder.lns[idx].VatExempt)
 							{
@@ -11067,6 +11081,9 @@ namespace epos {
 										currentorder.lns[idx].SerialTracking = offerpart.SerialTracking && offerpart.SaleType != 3;
 										currentorder.lns[idx].DocumentName = offerpart.DocumentName;
 										currentorder.lns[idx].PartType = offerpart.PartType;
+										//2016-10-20 SL - Pass ElucidPrice into line - Axminster >>
+										currentorder.lns[idx].ElucidPrice = offerpart.ElucidPrice;
+										//2016-10-20 SL - Pass ElucidPrice into line - Axminster ^^
 
 										currentorder.LineVal = 0.00M;
 										currentorder.lns[idx].LineValue = 0.00M;
@@ -11173,6 +11190,9 @@ namespace epos {
 										currentorder.lns[idx].DocumentName = comppart.DocumentName;
 										currentorder.lns[idx].ConsolidateGroup = comppart.ConsolidateGroup;
 										currentorder.lns[idx].PartType = comppart.PartType;
+										//2016-10-20 SL - Pass ElucidPrice into line - Axminster >>
+										currentorder.lns[idx].ElucidPrice = comppart.ElucidPrice;
+										//2016-10-20 SL - Pass ElucidPrice into line - Axminster ^^
 
 										currentorder.LineVal = 0.00M;
 										currentorder.lns[idx].LineValue = 0.00M;
@@ -11298,9 +11318,10 @@ namespace epos {
 					if ((thisPart.PartNumber.Substring(0, giftcardpartprefix.Length) == giftcardpartprefix) || (thisPart.PartNumber.Substring(0, giftvpartprefix.Length) == giftvpartprefix))
 					{
 						// this is a gift card, don't check its stock
-						zdebug("CheckSiteStock Gift Card found.");
-						zdebug("Part: " + thisPart.PartNumber);
-						zdebug("giftcardpartprefix: " + giftcardpartprefix);
+						//2016-12-05 SL - COMMENT OUT DEBUG LOG
+						//zdebug("CheckSiteStock Gift Card found.");
+						//zdebug("Part: " + thisPart.PartNumber);
+						//zdebug("giftcardpartprefix: " + giftcardpartprefix);
 						enablecontrol("EB1", true);
 						return false;
 					}
@@ -11389,7 +11410,8 @@ namespace epos {
 
 						m_item_val = thisPart.Price.ToString("F02");
 
-						zdebug("out of local stock: " + thisPart.PartNumber);
+						//2016-12-05 SL - COMMENT OUT DEBUG LOG
+						//zdebug("out of local stock: " + thisPart.PartNumber);
 						if (!bypassstockquestion)
 						{
 							//result = MessageBox.Show("Select '" + thisPart.Description + "', for collection?", "No Local Stock Found!", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1);
@@ -11400,7 +11422,8 @@ namespace epos {
 
 						if (result == DialogResult.Yes)
 						{
-							zdebug("Dialog YES: " + thisPart.PartNumber);
+							//2016-12-05 SL - COMMENT OUT DEBUG LOG
+							//zdebug("Dialog YES: " + thisPart.PartNumber);
 							stocksearchres.NumLines = 0;
 							searchpopup(true);
 							erc = elucid.searchstock(id, thisPart, stocksearchres, id.SiteColl);
@@ -11414,7 +11437,8 @@ namespace epos {
 										if (stocksearchres.lns[idx].Qty < orderCollQty3)
 										{
 											collectionStockFound = false;
-											zdebug("collectionStockFound set as false: " + thisPart.PartNumber);
+											//2016-12-05 SL - COMMENT OUT DEBUG LOG
+											//zdebug("collectionStockFound set as false: " + thisPart.PartNumber);
 											break;
 										}
 									}
@@ -11433,7 +11457,8 @@ namespace epos {
 									//}
 									//else
 									{
-										zdebug("Warehouse out of stock also. " + thisPart.PartNumber);
+										//2016-12-05 SL - COMMENT OUT DEBUG LOG
+										//zdebug("Warehouse out of stock also. " + thisPart.PartNumber);
 										if (!bypassstockquestion)
 										{
 											result2 = MessageBox.Show("'" + thisPart.Description + "', out of stock, sell from shop anyway?", "No Warehouse Stock Found", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1);
@@ -11452,14 +11477,16 @@ namespace epos {
 
 									if (result2 == DialogResult.Yes)
 									{
-										zdebug("DialogResult.Yes");
+										//2016-12-05 SL - COMMENT OUT DEBUG LOG
+										//zdebug("DialogResult.Yes");
 										// sell as shop item, no change needed.
 										skipPart = false;
 										changetext("EB1", "");
 									}
 									else
 									{
-										zdebug("DialogResult.No");
+										//2016-12-05 SL - COMMENT OUT DEBUG LOG
+										//zdebug("DialogResult.No");
 										// do not add part
 										skipPart = true;
 									}
@@ -11468,7 +11495,8 @@ namespace epos {
 								{
 									if (slavePart)
 									{
-										zdebug("part added as collection: " + thisPart.PartNumber);
+										//2016-12-05 SL - COMMENT OUT DEBUG LOG
+										//zdebug("part added as collection: " + thisPart.PartNumber);
 										MessageBox.Show("Offer part, '" + thisPart.Description + "', added as collection", "Collection Stock Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 									}
 
@@ -11487,7 +11515,8 @@ namespace epos {
 						}
 						else
 						{
-							zdebug("Dialog NO: " + thisPart.PartNumber);
+							//2016-12-05 SL - COMMENT OUT DEBUG LOG
+							//zdebug("Dialog NO: " + thisPart.PartNumber);
 						}
 					}
 					else if (checkparttasks && localStockFound == false && PartTasksFound > 0)
@@ -11564,7 +11593,8 @@ namespace epos {
 								currentpart.SaleTypeDesc = "S";
 								currentorder.lns[idx].SaleTypeDesc = "S";
 
-								zdebug("No collection stock found for part " + currentpart.PartNumber + " at " + id.SiteColl);
+								//2016-12-05 SL - COMMENT OUT DEBUG LOG
+								//zdebug("No collection stock found for part " + currentpart.PartNumber + " at " + id.SiteColl);
 								MessageBox.Show("No collection stock found for part " + currentpart.PartNumber + " at " + id.SiteColl, "No Collection Stock Found!");
 
 								//re-draw line in listbox
@@ -11880,15 +11910,17 @@ namespace epos {
 						// leave change on the card. TAKE MONEY OFF CARD BEFORE FINISHING?
 						//giftcardRedemptionList.lns[iGiftCard].createRedemptionMsg(giftcardredeemno, giftcardRedemptionList.lns[iGiftCard].Spend, currentorder.OrderNumber);
 
-						zdebug("giftcardredeemno: " + giftcardredeemno);
-						zdebug("giftcardRedemptionList.lns[iGiftCard].RefNo: " + giftcardRedemptionList.lns[iGiftCard].RefNo);
-						zdebug("giftcardRedemptionList.lns[iGiftCard].AuthCode: " + giftcardRedemptionList.lns[iGiftCard].AuthCode);
-						zdebug("giftcardRedemptionList.lns[iGiftCard].Result: " + giftcardRedemptionList.lns[iGiftCard].Result);
+						//2016-12-05 SL - COMMENT OUT DEBUG LOG
+						//zdebug("giftcardredeemno: " + giftcardredeemno);
+						//zdebug("giftcardRedemptionList.lns[iGiftCard].RefNo: " + giftcardRedemptionList.lns[iGiftCard].RefNo);
+						//zdebug("giftcardRedemptionList.lns[iGiftCard].AuthCode: " + giftcardRedemptionList.lns[iGiftCard].AuthCode);
+						//zdebug("giftcardRedemptionList.lns[iGiftCard].Result: " + giftcardRedemptionList.lns[iGiftCard].Result);
 
 						giftcardRedemptionList.lns[iGiftCard].createRedemptionMsg(giftcardredeemno, giftcardRedemptionList.lns[iGiftCard].Spend, giftcardRedemptionList.lns[iGiftCard].RefNo);
-						zdebug("GIFT CARD REDEEM IN");
+						//2016-12-05 SL - COMMENT OUT DEBUG LOG
+						//zdebug("GIFT CARD REDEEM IN");
 						erc = elucid.givexvoucher(id, giftcardRedemptionList.lns[iGiftCard]);
-						zdebug("GIFT CARD REDEEM OUT");
+						//zdebug("GIFT CARD REDEEM OUT");
 						Application.DoEvents();
 						if (erc != 0)
 						{
@@ -11961,10 +11993,11 @@ namespace epos {
 					Thread.Sleep(250);
 					try
 					{
-						zdebug("giftcardredeemno: " + giftcardrefundno);
-						zdebug("giftcardReversalList.lns[iGiftCard].RefNo: " + giftcardReversalList.lns[iGiftCard].RefNo);
-						zdebug("giftcardReversalList.lns[iGiftCard].AuthCode: " + giftcardReversalList.lns[iGiftCard].AuthCode);
-						zdebug("giftcardReversalList.lns[iGiftCard].Result: " + giftcardReversalList.lns[iGiftCard].Result);
+						//2016-12-05 SL - COMMENT OUT DEBUG LOG
+						//zdebug("giftcardredeemno: " + giftcardrefundno);
+						//zdebug("giftcardReversalList.lns[iGiftCard].RefNo: " + giftcardReversalList.lns[iGiftCard].RefNo);
+						//zdebug("giftcardReversalList.lns[iGiftCard].AuthCode: " + giftcardReversalList.lns[iGiftCard].AuthCode);
+						//zdebug("giftcardReversalList.lns[iGiftCard].Result: " + giftcardReversalList.lns[iGiftCard].Result);
 
 						giftcardReversalList.lns[iGiftCard].createReversalMsg(giftcardrefundno, giftcardReversalList.lns[iGiftCard].CardNo, giftcardReversalList.lns[iGiftCard].RefNo, giftcardReversalList.lns[iGiftCard].Spend);
 						erc = elucid.givexvoucher(id, giftcardReversalList.lns[iGiftCard]);
@@ -12198,7 +12231,6 @@ namespace epos {
 					changetext("L_HDG6", "Reserved Orders");
 				if (taskStatus == 30)
 					changetext("L_HDG6", "Completed Orders");
-
 			}
 			return;
 		}
@@ -12206,7 +12238,7 @@ namespace epos {
 		{
 			try
 			{
-#if DIRECTX
+#if DIRECTX || WMP
 				zdebug("DirectX01");
 				//newstate screen:
 				//zdebug("secondScreenType: " + secondScreenType.ToString());
@@ -12217,9 +12249,9 @@ namespace epos {
 					{
 						try
 						{
-							//zdebug("DirectX02");
-							
-							if (lb1[0].Items == null)
+							if (movieName.Length == 0)							
+								_ShowMovie = false;							
+							else if (lb1[0].Items == null)
 								_ShowMovie = true;
 							else
 								_ShowMovie = lb1[0].Items.Count < 1;
@@ -12234,6 +12266,16 @@ namespace epos {
 										secondaryScreen = screen;
 								}
 							}
+
+							// 2016-11-21 SL - MOVE HERE SO CHECKED BEFORE USE>>
+							if (secondaryScreen == null)
+							{
+								// TURN OFF SECOND SCREEN
+								secondScreenType = 0;
+								MessageBox.Show("No second screen found.");
+								return;
+							}
+							// 2016-11-21 SL - MOVE HERE SO CHECKED BEFORE USE^^
 
 							// FORMS ARE NEW SO CREATE AND ADD VIDEO/BACKGROUND
 							if (secondaryForm == null)
@@ -12257,13 +12299,16 @@ namespace epos {
 								else
 									secondVideoForm.Left = primaryScreen.Bounds.Width;
 
-								if (!secondVideoForm.createVideo(movieName, secondaryScreen.Bounds.Height, secondaryScreen.Bounds.Width)) return;
+								secondVideoForm.createVideo(movieName, secondaryScreen.Bounds.Height - 1, secondaryScreen.Bounds.Width - 1, "WMP");
+								//if (!secondVideoForm.createVideo(movieName, secondaryScreen.Bounds.Height, secondaryScreen.Bounds.Width)) return;
 							}
-							if (secondaryScreen == null)
-							{
-								MessageBox.Show("No second screen found.");
-								return;
-							}
+							//2016-11-21 SL - MOVE ABOVE SO CHECKED BEFORE USE>>
+							//if (secondaryScreen == null)
+							//{
+							//	MessageBox.Show("No second screen found.");
+							//	return;
+							//}
+							//2016-11-21 SL - MOVE ABOVE SO CHECKED BEFORE USE^^
 							if (_ShowMovie)
 							{
 								if (secondaryForm == null)
@@ -12284,6 +12329,9 @@ namespace epos {
 									secondVideoForm.Height = secondaryScreen.Bounds.Height;
 								if (secondVideoForm.Width != secondaryScreen.Bounds.Width)
 									secondVideoForm.Width = secondaryScreen.Bounds.Width;
+
+								secondaryForm.Left = primaryScreen.Bounds.Width;
+								secondVideoForm.Show();
 
 								this.focuscontrol("EB1");
 							}
@@ -12308,7 +12356,7 @@ namespace epos {
 								if (secondaryForm.Height != secondaryScreen.Bounds.Height)
 									secondaryForm.Height = secondaryScreen.Bounds.Height;
 								if (secondaryForm.Width != secondaryScreen.Bounds.Width)
-									secondaryForm.Width = secondaryScreen.Bounds.Width;
+									secondaryForm.Width = secondaryScreen.Bounds.Width;								
 
 								// focus textbox again
 								this.focuscontrol("EB1");
@@ -12323,7 +12371,7 @@ namespace epos {
 					}//lock
 					zdebug("DirectX07");
 				}
-#endif //DIRECTX
+#endif //DIRECTX || WMP
 			}
 			catch (Exception exc)
 			{
@@ -12449,7 +12497,21 @@ namespace epos {
 					printittest(true);
 					return;
 				}
-
+				if (eventdata == "TESTVOUCPRINT")
+				{
+					PrintVoucherTest0();
+					return;
+				}
+				if (eventdata == "TESTVOUCPRINT1")
+				{
+					PrintVoucherTest1();
+					return;
+				}
+				if (eventdata == "TESTVOUCPRINT2")
+				{
+					PrintGiftReceiptTest();
+					return;
+				}
 				//				if (eventdata == "F1")	// product search
 				//				{
 				//					showwindow();
@@ -13619,11 +13681,15 @@ namespace epos {
 								startInfo.FileName = processfile;//"mstsc.EXE";
 								if (processargs.Length > 0)
 									startInfo.Arguments = processargs;//"/V:davros";
-								zdebug(startInfo.FileName);
+								//2016-12-05 SL - COMMENT OUT DEBUG LOG
+								//zdebug(startInfo.FileName);
 								Process.Start(startInfo);
 							}
 							else
-								zdebug("blank startInfo.FileName");
+							{
+								//2016-12-05 SL - COMMENT OUT DEBUG LOG
+								//zdebug("blank startInfo.FileName");
+							}
 						}
 						catch (Exception ex)
 						{
@@ -17163,6 +17229,26 @@ namespace epos {
 										}
 
 										idx = currentorder.NumLines;
+										// 2016-11-08 SL AXMOINSTER ISSUE 17, PARTS WITH ZERO PRICE >>
+										if (exclusivediscounts)
+										{
+											currentorder.lns[idx].PartType = currentpart.PartType;
+											currentorder.lns[idx].ElucidPrice = currentpart.ElucidPrice;
+											currentorder.lns[idx].BaseUnitPrice = currentpart.Price;
+
+											currentorder.lns[idx].BaseTaxPrice = currentpart.TaxValue / currentpart.Qty;
+											currentorder.lns[idx].LineTaxValue = currentpart.TaxValue;
+
+											currentorder.lns[idx].BaseNetPrice = currentpart.NetPrice;
+											currentorder.lns[idx].LineNetValue = currentpart.NetPrice * currentpart.Qty;
+
+											currentorder.lns[idx].LineValue = currentorder.lns[idx].LineTaxValue + currentorder.lns[idx].LineNetValue;
+											currentorder.lns[idx].DiscPercent = currentpart.DiscRequired;
+											currentorder.HeadDiscPercent = currentpart.HeadDiscRequired;
+
+											currentpart.Discount = (currentorder.lns[idx].BaseUnitPrice * currentpart.Qty) - currentorder.lns[idx].LineValue;
+										}
+										// 2016-11-08 SL AXMOINSTER ISSUE 17, PARTS WITH ZERO PRICE ^^
 										currentorder.lns[idx].Part = currentpart.PartNumber;
 										currentorder.lns[idx].Descr = currentpart.Description;
 										currentorder.lns[idx].ProdGroup = currentpart.ProdGroup;
@@ -19018,7 +19104,10 @@ namespace epos {
 						currentorder.DepChequeVal = 0;
 						// - currentorder.DarVouch1Val - currentorder.DarVouch2Val
 						outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal - currentorder.DepCashVal - currentorder.DepChequeVal - currentorder.DarVouch1Val - currentorder.DarVouch2Val;
-						currentorder.RemainderVal = outstanding;
+
+						// 2016-12-01 SL - UNUSED VARIABLE - DEFAULT AS ACCOUNT IN ELUCID XML
+						//currentorder.RemainderVal = outstanding;
+
 						this.m_item_val = outstanding.ToString("F02");
 						newstate(69);
 						enabletradeoption();
@@ -19027,7 +19116,8 @@ namespace epos {
 
 					currentorder.ChequeVal = 0;
 					outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal - currentorder.DepCashVal - currentorder.DepChequeVal - currentorder.DarVouch1Val - currentorder.DarVouch2Val;
-					currentorder.RemainderVal = outstanding;
+					// 2016-12-01 SL - UNUSED VARIABLE - DEFAULT AS ACCOUNT IN ELUCID XML
+					//currentorder.RemainderVal = outstanding;	
 					this.m_item_val = outstanding.ToString("F02");
 
 					if (currentorder.OrdType == orderdata.OrderType.Order) {
@@ -20006,29 +20096,42 @@ namespace epos {
 				enablecontrol("BF8", false);
 				if (eventdata == "CAPTURE")
 				{
-					if (sequenceoption == 3 && !gotcustomer)
+	//2016-11-08 SL - JoJo, Customer Capture fix >>
+					//if (sequenceoption == 3 && !gotcustomer)
+					if (sequenceoption == 3)
 					{	// customer details first from new state 
-						lb1[2].Items.Clear();
-						// Clear items as they can show part search...
-						m_prev_state = 16;
-						m_calling_state = 16;
+	//2016-11-08 SL - JoJo, Customer Capture fix ^^
+						if (!gotcustomer)
+						{
+							lb1[2].Items.Clear();
+							// Clear items as they can show part search...
+							m_prev_state = 16;
+							m_calling_state = 16;
 
-						//clear97
-						changetext("EC_COUNTY", ""); 
-						changetext("EC_INITIALS", "");
-						changetext("EC_SURNAME", "");
-						changetext("EC_ADDRESS", "");
-						changetext("EC_POST_CODE", "");
-						changetext("EC_EMAIL_ADDRESS", "");
+							//clear97
+							changetext("EC_COUNTY", "");
+							changetext("EC_INITIALS", "");
+							changetext("EC_SURNAME", "");
+							changetext("EC_ADDRESS", "");
+							changetext("EC_POST_CODE", "");
+							changetext("EC_EMAIL_ADDRESS", "");
 
-						changechecked("XB1", "0");
-						changechecked("XB2", "0");
-						changechecked("XB3", "0");
-						changechecked("XB4", "0");
-						changechecked("XB5", "0");
-						m_calling_state = 16;
-						newstate(97);	// get customer
-						return;
+							changechecked("XB1", "0");
+							changechecked("XB2", "0");
+							changechecked("XB3", "0");
+							changechecked("XB4", "0");
+							changechecked("XB5", "0");
+							m_calling_state = 16;
+							newstate(97);	// get customer
+							return;
+	//2016-11-08 SL - JoJo, Customer Capture fix >>
+						}
+						else {
+							m_calling_state = 16;
+							newstate(98);	// get customer
+							return;
+						}
+	//2016-11-08 SL - JoJo, Customer Capture fix ^^						
 					}
 					if (sequenceoption == 3 && melucidsql.connectionfail)
 					{
@@ -27136,21 +27239,33 @@ namespace epos {
 								int erc = elucid.validatepart(id, discountPart, currentcust, false);
 								if (erc == 0)
 								{
-									currentorder.lns[idx].ElucidPrice = currentpart.ElucidPrice;
-									currentorder.lns[idx].BaseUnitPrice = discountPart.Price;
+									//2016-10-20 SL - DON'T CHANGE KIT PART PRICES>>
+									if (currentorder.lns[idx].MasterLine == -1)
+									{
+										//2016-10-20 SL - DON'T CHANGE KIT PART PRICES^^
+										//2016-10-20 SL - Fix discountPrt.ElucidPrice>>
+										//currentorder.lns[idx].ElucidPrice = currentpart.ElucidPrice;
+										currentorder.lns[idx].ElucidPrice = discountPart.ElucidPrice;
+										//2016-10-20 SL - Fix discountPrt.ElucidPrice^^
+										currentorder.lns[idx].BaseUnitPrice = discountPart.Price;
 
-									currentorder.lns[idx].BaseTaxPrice = discountPart.TaxValue / discountPart.Qty;
-									currentorder.lns[idx].LineTaxValue = discountPart.TaxValue;
+										currentorder.lns[idx].BaseTaxPrice = discountPart.TaxValue / discountPart.Qty;
+										currentorder.lns[idx].LineTaxValue = discountPart.TaxValue;
 
-									currentorder.lns[idx].BaseNetPrice = discountPart.NetPrice;// / discountPart.Qty;
-									currentorder.lns[idx].LineNetValue = discountPart.NetPrice * discountPart.Qty;
+										currentorder.lns[idx].BaseNetPrice = discountPart.NetPrice;// / discountPart.Qty;
+										currentorder.lns[idx].LineNetValue = discountPart.NetPrice * discountPart.Qty;
 
-									currentorder.lns[idx].LineValue = currentorder.lns[idx].LineTaxValue + currentorder.lns[idx].LineNetValue;
-									currentorder.lns[idx].DiscPercent = discountPart.DiscRequired;
-									currentorder.HeadDiscPercent = discperc;
+										currentorder.lns[idx].LineValue = currentorder.lns[idx].LineTaxValue + currentorder.lns[idx].LineNetValue;
+										currentorder.lns[idx].DiscPercent = discountPart.DiscRequired;
+										currentorder.HeadDiscPercent = discperc;
 
-									currentorder.lns[idx].Discount = (currentorder.lns[idx].BaseUnitPrice * discountPart.Qty) - currentorder.lns[idx].LineValue;
-									currentorder.lns[idx].LineValue = currentorder.lns[idx].BaseUnitPrice * discountPart.Qty;
+										currentorder.lns[idx].Discount = (currentorder.lns[idx].BaseUnitPrice * discountPart.Qty) - currentorder.lns[idx].LineValue;
+										currentorder.lns[idx].LineValue = currentorder.lns[idx].BaseUnitPrice * discountPart.Qty;
+									}
+									else
+									{
+										// dont add discount to kit parts
+									}
 								}
 								//currentpart.HeadDiscRequired = 0.0m;
 							}
@@ -29344,7 +29459,8 @@ namespace epos {
 
 					//currentorder.lns[idx].Return = true; TODO: note down this change in version control
 					currentorder.lns[idx].Return = returntostock;
-					zdebug("currentorder.lns[idx].Return: " + currentorder.lns[idx].Return.ToString() + ", part:" + currentorder.lns[idx].Part);
+					//2016-12-05 SL - COMMENT OUT DEBUG LOG
+					//zdebug("currentorder.lns[idx].Return: " + currentorder.lns[idx].Return.ToString() + ", part:" + currentorder.lns[idx].Part);
 
 					if (!selectnewsaleitem) {
 						lb1[0].SelectedIndex = -1;
@@ -29376,7 +29492,8 @@ namespace epos {
 
 					//currentorder.lns[idx].Return = false;
 					currentorder.lns[idx].Return = !returntostock;
-					zdebug("currentorder.lns[idx].Return: " + currentorder.lns[idx].Return.ToString());
+					//2016-12-05 SL - COMMENT OUT DEBUG LOG
+					//zdebug("currentorder.lns[idx].Return: " + currentorder.lns[idx].Return.ToString());
 
 					if (!selectnewsaleitem)
 					{
@@ -29528,6 +29645,8 @@ namespace epos {
 										changechecked("XB3", "0");
 										changechecked("XB4", "0");
 										changechecked("XB5", "0");
+
+										changechecked("XB6", "0");
 
 										m_calling_state = 10;
 										newstate(97);	// get customer
@@ -35071,11 +35190,15 @@ namespace epos {
 							startInfo.FileName = processfile;//"mstsc.EXE";
 							if (processargs.Length > 0)
 								startInfo.Arguments = processargs;//"/V:davros";
-							zdebug(startInfo.FileName);
+							//2016-12-05 SL - COMMENT OUT DEBUG LOG
+							//zdebug(startInfo.FileName);
 							Process.Start(startInfo);
 						}
 						else
-							zdebug("blank startInfo.FileName");
+						{
+							//2016-12-05 SL - COMMENT OUT DEBUG LOG
+							//zdebug("blank startInfo.FileName");
+						}
 					}
 					catch (Exception ex)
 					{
@@ -35971,11 +36094,13 @@ namespace epos {
 
 								// get balance 
 								// NEED A CARD NUMBER
-								zdebug("Gift Card BALANCE CHECK IN");
+								//2016-12-05 SL - COMMENT OUT DEBUG LOG
+								//zdebug("Gift Card BALANCE CHECK IN");
 								waitpopup(true);
 								currentgiftcard.createBalanceRequestMsg(CardNumber, currentorder.OrderNumber);
 								erc = elucid.givexvoucher(id, currentgiftcard);
-								zdebug("Gift Card BALANCE CHECK OUT");
+								//2016-12-05 SL - COMMENT OUT DEBUG LOG
+								//zdebug("Gift Card BALANCE CHECK OUT");
 								waitpopup(false);
 								if (erc == 0)
 								{
@@ -39327,6 +39452,12 @@ namespace epos {
 						currentcust.Surname = gettext("EC_SURNAME");
 						currentcust.Address = gettext("EC_ADDRESS");
 
+						// SL 2016-11-25 - CLEAN UNWANTED EXTRA LINE FEEDS
+						currentcust.Address = currentcust.Address.Replace("\r\n\n", "\r\n");
+						currentcust.Address = currentcust.Address.Replace("\r\n\n\n", "\r\n");
+						currentcust.Address = currentcust.Address.Replace("\r\n\n\n\n", "\r\n");
+						currentcust.Address = currentcust.Address.Replace("\r\n\n\r\n\n\r\n\n\r\n\n", "\r\n");
+
 						//currentcust.PostCode = gettext("EC_POST_CODE"); 
 						currentcust.PostCode = formatpostcode(gettext("EC_POST_CODE"), true);
 
@@ -39340,6 +39471,10 @@ namespace epos {
 						currentcust.NoEmail = getchecked("XB3") ? "1" : "0";
 						currentcust.NoPhone = getchecked("XB4") ? "1" : "0";
 						currentcust.NoSMS = getchecked("XB5") ? "1" : "0";
+
+						//2016-11-02 SL - ADD E-RECEIPT FIELD.
+						//currentcust.ereceipt = getchecked("XB6") ? "1" : "0";
+						currentcust.Medical = getchecked("XB6");
 
 						// DOD 20/06/2016 to set city if it is shown otherwise blank it. if user cannot see if then it should be blank
 						// as they cannot change it and other changes for afd lookup and customer search may set it
@@ -39451,6 +39586,9 @@ namespace epos {
 						changechecked("XB3", "0");
 						changechecked("XB4", "0");
 						changechecked("XB5", "0");
+
+						//2016-11-02 SL - ADD E-RECEIPT FIELD.
+						changechecked("XB6", "0");
 						newstate(97);
 					}
 					if (eventdata == "SKIP")
@@ -39835,6 +39973,9 @@ namespace epos {
 						changechecked("XB3", custsearchres.lns[idx].NoEmail);
 						changechecked("XB4", custsearchres.lns[idx].NoPhone);
 						changechecked("XB5", custsearchres.lns[idx].NoSMS);
+
+						//2016-11-02 SL - ADD E-RECEIPT FIELD.
+						changechecked("XB6", "0");
 
 						changetext("L_HDG6", "                       UPDATE CUSTOMER DETAILS");
 						changetext("L_HDG6", "Edit Customer");
@@ -41112,8 +41253,10 @@ namespace epos {
 					StringBuilder messages = new StringBuilder(2048);
 
 					bool myloop = true;
-					while (myloop)
+					int loopCount = 0;
+					while (myloop && loopCount < 100)
 					{
+						loopCount++;
 						bytes = s.Receive(RecvBytes, RecvBytes.Length, 0);
 						if (bytes > 3)
 						{
@@ -41148,6 +41291,7 @@ namespace epos {
 							messages.Append(strRetPage);
 						}
 					}
+					loopCount = 0;
 				}
 
 				// clean up
@@ -42289,6 +42433,7 @@ namespace epos {
 							if (printorder.lns[idx].Qty < 0)
 							{
 								reprintit = true;
+								//2016-12-05 SL - COMMENT OUT DEBUG LOG
 								zdebug("reprintit=true["+ idx.ToString() + "]");
 								break;
 							}
@@ -42297,7 +42442,8 @@ namespace epos {
 				}
 				else
 				{
-					zdebug("reprintit=false[loop]");
+					//2016-12-05 SL - COMMENT OUT DEBUG LOG
+					//zdebug("reprintit=false[loop]");
 				}
 				if (reprintit == false)
 				{
@@ -42306,7 +42452,8 @@ namespace epos {
 
 				printit(false, false, "", signature, true);
 
-				zdebug("reprintit: " + reprintit.ToString());
+				//2016-12-05 SL - COMMENT OUT DEBUG LOG
+				//zdebug("reprintit: " + reprintit.ToString());
 				if (reprintit)
 				{
 					Thread.Sleep(500);
@@ -42426,6 +42573,9 @@ namespace epos {
 			IntPtr HBit = (IntPtr)0;
 			IntPtr hcdc = (IntPtr)0;
 
+			int itextindent = 0;
+			string stextindent = "";
+
 			//try
 			//{
 
@@ -42437,7 +42587,6 @@ namespace epos {
 
 				IntPtr hfontControl = CreateFont(20, 0, 0, 0, 400, 0, 0, 0, DEFAULT_CHARSET, OUT_DEVICE_PRECIS, CLIP_EMBEDDED, DEFAULT_QUALITY, FIXED_PITCH, printercontrolfont);
 				IntPtr hdc = CreateDC("WINSPOOL", printername, "", 0);
-
 
 				int devcaps = GetDeviceCaps(hdc, RASTERCAPS);
 				int ppi = GetDeviceCaps(hdc, LOGPIXELSX);
@@ -42467,24 +42616,20 @@ namespace epos {
 				{
 					bcppi = printerbcppi;
 				}
-
 				if (printlogo != "")
 				{
 					hcdc = CreateCompatibleDC(hdc);
 
 					int ddd = SelectObject(hcdc, HBit);
 				}
-
 				int erc3 = StartDoc(hdc, 0);
-#if PRINT_T_O_FILE
+#if PRINT_TO_FILE
 				// Create a writer for printing receipt to text file in trace.
 				StartDebugReceipt();
 #endif
-
 				if (printlogo != "")
 				{
 					//bool ccc = StretchBlt(hdc,0,0,(ppi * logo.Width / logo.Height),ppi,hcdc,0,0,logo.Width,logo.Height,SRCCOPY);
-
 					yoffset = ppi;
 				}
 				else
@@ -42496,73 +42641,353 @@ namespace epos {
 						erc5 = TextOut(hdc, 0, 0, "G", 1);
 					}
 				}
-
-				IntPtr hfontPrint3020 = CreateFont(30, 20, 0, 0, printerweightlarge, 0, 0, 0, DEFAULT_CHARSET, OUT_DEVICE_PRECIS, CLIP_EMBEDDED, DEFAULT_QUALITY, FIXED_PITCH, printerfontlarge);
-				IntPtr hfontPrint6050 = CreateFont(60, 50, 0, 0, printerweightlarge, 0, 0, 0, DEFAULT_CHARSET, OUT_DEVICE_PRECIS, CLIP_EMBEDDED, DEFAULT_QUALITY, FIXED_PITCH, printerfontlarge);
-
-				IntPtr hfontPrintLar = CreateFont((largeppi / 10), 0, 0, 0, printerweightlarge, 0, 0, 0, DEFAULT_CHARSET, OUT_DEVICE_PRECIS, CLIP_EMBEDDED, DEFAULT_QUALITY, FIXED_PITCH, printerfontlarge);
 				IntPtr hfontPrint = CreateFont((ppi / 10), 0, 0, 0, printerweight, 0, 0, 0, DEFAULT_CHARSET, OUT_DEVICE_PRECIS, CLIP_EMBEDDED, DEFAULT_QUALITY, FIXED_PITCH, printerfont);
+				IntPtr hfontPrintLar = CreateFont((largeppi / 10), 0, 0, 0, printerweightlarge, 0, 0, 0, DEFAULT_CHARSET, OUT_DEVICE_PRECIS, CLIP_EMBEDDED, DEFAULT_QUALITY, FIXED_PITCH, printerfontlarge);
+
 				erc4 = SelectObject(hdc, hfontPrint);
 
-				if (layaway)
-				{
-					yoffset += 4 * lineincr;
-					line = "      L A Y A W A Y";
-					erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
-					yoffset += 2 * lineincr;
-				}
+				//if (layaway)
+				//{
+				//	yoffset += 4 * lineincr;
+				//	line = "      L A Y A W A Y";
+				//	erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+				//	yoffset += 2 * lineincr;
+				//}
 
-				yoffset += lineincr;
-				yoffset += lineincr;
+				//yoffset += lineincr;
+				//yoffset += lineincr;
 
-				if (addr1 != "")
-				{
-					erc5 = TextOut(hdc, 5, yoffset, addr1, addr1.Length);
-					yoffset += lineincr;
-				}
-				if (addr2 != "")
-				{
-					erc4 = SelectObject(hdc, hfontPrint3020);
+				//if (addr1 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr1, addr1.Length);
+				//	yoffset += lineincr * 3;
+				//}
+				//if (addr2 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr2, addr2.Length);
+				//	yoffset += lineincr * 2;
+				//}
+				//if (addr3 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr3, addr3.Length);
+				//	yoffset += lineincr * 2;
+				//}
+				//if (addr4 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr4, addr4.Length);
+				//	yoffset += lineincr * 2;
+				//}
+				//if (addr5 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr5, addr5.Length);
+				//	yoffset += lineincr;
+				//}
+				//if (addr6 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr6, addr6.Length);
+				//	yoffset += lineincr * 3;
+				//}
+				//addr7 = "12345678901234567890123456789012345678901234";
+				//if (addr7 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr7, addr7.Length);
+				//	yoffset += lineincr * 3;
+				//}
+				//addr8 = "12345678901234567890123456789012345678901234";
+				//if (addr8 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr8, addr8.Length);
+				//	yoffset += lineincr * 3;
+				//}
 
-					erc5 = TextOut(hdc, 5, yoffset, addr2, addr2.Length);
-					yoffset += lineincr;
+				//********************************************************
+				string outMessage = "";
+				outMessage = "V,** CARDHOLDER COPY **,,Customer Header 1,,123456789012345678901,Customer Header 2,---------------------,VISA DEBIT,************9423,SALE,ICC,Please debit my account,Amount: ?9.95,TOTAL: ?9.95,DECLINED,Please keep receipt for your records,PTID: 29891566,MID: ***49872,TID: ****6839,Date: 11/11/2016,Time: 13:38:34,,,,AID: A0000000031010,App Seq: 00,---------------------,Customer Footer 1,123456789012345678901,Customer Footer 2,,";
+				bool DuplicateCopy = true;
+				int cpos = -1;
+				int cpos2 = -1;
+				int ccount = -1;
+				string savedline = "";
 
-					erc4 = SelectObject(hdc, hfontPrint);
-				}
-				if (addr3 != "")
+				if (outMessage.Length == 0)
 				{
-					//erc4 = SelectObject(hdc, hfontPrint6050);
+					if (DuplicateCopy)
+					{
+						// add blank line
+						yoffset += lineincr;
 
-					erc5 = TextOut(hdc, 5, yoffset, addr3, addr3.Length);
-					yoffset += lineincr;
+						// use larger font.
+						erc4 = SelectObject(hdc, hfontPrint);
 
-					erc4 = SelectObject(hdc, hfontPrint);
+						line = "012345678901234567890123456789";
+						line = CentraliseText(40, line);
+						erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+						yoffset += lineincr;
+					}
+					if (DuplicateCopy)
+					{
+						// add blank line
+						yoffset += lineincr;
+
+						// use larger font.
+						erc4 = SelectObject(hdc, hfontPrintLar);
+
+						line = "012345678901234567890123456789";
+						line = CentraliseText(40, line);
+						erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+						yoffset += lineincr;
+					}
+					if (DuplicateCopy)
+					{
+						// add blank line
+						yoffset += lineincr;
+
+						// use larger font.
+						erc4 = SelectObject(hdc, hfontPrint);
+
+						line = "0123456789012345678901234567890123456789";
+						line = CentraliseText(40, line);
+						erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+						yoffset += lineincr;
+					}
+					if (DuplicateCopy)
+					{
+						// add blank line
+						yoffset += lineincr;
+
+						// use larger font.
+						erc4 = SelectObject(hdc, hfontPrintLar);
+
+						line = "0123456789012345678901234567890123456789";
+						line = CentraliseText(40, line);
+						erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+						yoffset += lineincr;
+					}
 				}
-				if (addr4 != "")
+	
+				if (outMessage.Length > 10)
 				{
-					erc5 = TextOut(hdc, 5, yoffset, addr4, addr4.Length);
+					yoffset += lineincr * 2;	// 2 blank lines
+
+					if (DuplicateCopy)
+					{
+						line = "** DUPLICATE **";
+						line = CentraliseText(40, line);
+						erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+						yoffset += lineincr;
+					}
+
+					yoffset += lineincr;
+					cpos = outMessage.IndexOf(",", cpos + 1);
+					while (cpos > -1)
+					{
+						// epos receipt are 40 chars, VeriFone vouchers are 21
+						cpos2 = outMessage.IndexOf(",", cpos + 1);
+						if (cpos2 > -1)
+						{
+
+							line = outMessage.Substring(cpos + 1, cpos2 - cpos - 1);
+
+							if (line.Contains("** ") && line.Contains(" **"))
+							{
+								line = CentraliseText(30, line);
+							}
+							if (line.Contains("----------"))
+							{
+								line = "------------------------------";
+							}
+
+							if (line.Contains("?"))
+							{
+								if (currencysymbol.Length > 0)
+									line = line.Replace("?", currencysymbol);
+								else
+									line = line.Replace("?", "£");
+							}
+							// IF LINE CONTAINS ':' THEN SPACE THIS OUT TO FILL THE 30 CHARS
+							//if (line.Contains(": "))
+							if (line.Contains(": "))
+							{
+								if (textindent1.Contains("  ") && line.Contains("TOTAL"))
+								{
+									// DONT ADD SPACES WITH STAR PRINTERS WITH LARGER TEXT
+									//Thread.Sleep(500);									
+								}
+								else if (textindent1 == "centrestar")
+								{
+									itextindent = 0;
+									stextindent = "";
+									int linelength = 55 - (largeppi / 10);
+
+									itextindent = (linelength - line.Length);
+									for (int textloop = 0; textloop < (itextindent - 1); textloop++)
+									{
+										stextindent = stextindent + " ";
+									}
+									line = line.Replace(": ", ":  " + stextindent);
+								}
+								else
+								{
+									itextindent = 0;
+									stextindent = "";
+
+									itextindent = (30 - line.Length);
+									for (int textloop = 0; textloop < (itextindent - 1); textloop++)
+									{
+										stextindent = stextindent + " ";
+									}
+									line = line.Replace(": ", ":  " + stextindent);
+								}
+							}
+							if (line.Contains("TOTAL"))
+							{
+								yoffset += lineincr;
+
+								// use larger font.
+								erc4 = SelectObject(hdc, hfontPrintLar);
+
+								line = line.ToUpper();
+
+								if (textindent1.Length > 0 && (textindent1 != "centre" && textindent1 != "centrestar"))
+									line = textindent1 + line;
+								//else if 
+								//{
+									//CENTRE WITH : INSERTED
+								//}
+							}
+							if (line.Contains("Amount"))
+							{
+								// add line
+								//yoffset += lineincr;
+
+								// back to normal font
+								//erc4 = SelectObject(hdc, hfontPrint);
+
+								line = CentraliseText(30, line);
+							}
+							if (line.Contains("DECLINED"))
+							{
+								// add blank line
+								yoffset += lineincr;
+
+								// use larger font.
+								erc4 = SelectObject(hdc, hfontPrintLar);
+
+								line = line.ToUpper();
+
+								//DON'T CENTRALALISE WITH STAR PRINTER
+								if (textindent1 == "centre")
+									line = CentraliseText(30, line);
+								if (textindent1 == "centrestar")
+								{
+
+									//STAR PRINTERS, WORK OUT CENTRE FROM SIZE OF PPI
+									//65 - with 40 char receipt | 55 with a 30
+									int linelength = 55 - (largeppi / 10);
+
+									line = CentraliseText(linelength, line);
+
+								}
+								else if (textindent1.Length > 0)
+									line = textindent1 + textindent1 + line;
+							}
+							if (line.Contains("please") || line.Contains("VERIFIED") || line.Contains("verified") || line.Contains("PLEASE") || line.Contains("Please") && line.Length < 31)
+							{
+								line = line.ToUpper();
+								line = CentraliseText(30, line);
+							}
+							if (line.Contains("MY ACCOUNT") || line.Contains("my account"))
+							{
+								line = line.ToUpper();
+							}
+							if (line.Length > 30)
+							{
+								// longer than required line length
+								line = line.Trim();
+								try
+								{
+									string tmpstr = "";
+									for (int strPoint = line.Length; strPoint > 0; strPoint--)
+									{
+										if (line[strPoint - 1] == ' ' && tmpstr.Length > 20)
+										{
+											// first line
+											string line1str = line.Substring(0, 35 - tmpstr.Length);
+											line1str = CentraliseText(30, line1str);
+											line1str = VERIFONEINDENT + line1str;
+
+											erc5 = TextOut(hdc, 5, yoffset, line1str, line1str.Length);
+											yoffset += lineincr + 5;
+
+											// second line
+											line = CentraliseText(30, tmpstr);
+											break;
+										}
+										else
+											tmpstr = line[strPoint - 1] + tmpstr;
+									}
+								}
+								catch
+								{
+								}
+							}
+							if (line.Length > 0)
+							{
+								line = VERIFONEINDENT + line;
+								erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+								yoffset += lineincr + lineincr;
+							}
+							cpos = outMessage.IndexOf(",", cpos2);
+							savedline = line;
+							ccount++;
+
+							// revert to normal font.
+							erc4 = SelectObject(hdc, hfontPrint);
+
+						}
+						else // leave loop
+							cpos = -1;
+					}
+
+					if (DuplicateCopy == true)
+					{
+						line = "** DUPLICATE **";
+						line = CentraliseText(40, line);
+						erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+						yoffset += lineincr;
+						DuplicateCopy = false;
+					}
+					// Blank line after card voucher message
 					yoffset += lineincr;
 				}
-				if (addr5 != "")
-				{
-					erc5 = TextOut(hdc, 5, yoffset, addr5, addr5.Length);
-					yoffset += lineincr;
-				}
-				if (addr6 != "")
-				{
-					erc5 = TextOut(hdc, 5, yoffset, addr6, addr6.Length);
-					yoffset += lineincr;
-				}
-				if (addr7 != "")
-				{
-					erc5 = TextOut(hdc, 5, yoffset, addr7, addr7.Length);
-					yoffset += lineincr;
-				}
-				if (addr8 != "")
-				{
-					erc5 = TextOut(hdc, 5, yoffset, addr8, addr8.Length);
-					yoffset += lineincr;
-				}
+				//********************************************************
+
+				//addr5 = "     ------------------------------";
+				//if (addr5 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr5, addr5.Length);
+				//	yoffset += lineincr;
+				//}
+				//addr6 = "     012345678901234567890123456789";
+				//if (addr6 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr6, addr6.Length);
+				//	yoffset += lineincr * 3;
+				//}
+				//erc4 = SelectObject(hdc, hfontPrintLar);
+				//addr7 = VERIFONEINDENT + "TOTAL:    £ 9.95";
+				//if (addr7 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr7, addr7.Length);
+				//	yoffset += lineincr * 3;
+				//}
+				//addr8 = VERIFONEINDENT + "DECLINED";
+				//if (addr8 != "")
+				//{
+				//	erc5 = TextOut(hdc, 5, yoffset, addr8, addr8.Length);
+				//	yoffset += lineincr * 3;
+				//}
+				//erc4 = SelectObject(hdc, hfontPrint);
 
 				yoffset += lineincr * 2;	// 2 blank lines
 
@@ -42577,22 +43002,18 @@ namespace epos {
 
 				erc9 = EndDoc(hdc);
 
-#if PRINT_T_O_FILE
+#if PRINT_TO_FILE
 				// Close a writer for printing receipt to text file.
 				EndDebugReceipt();
 #endif
 				bool erc7 = DeleteObject(hfontControl);
+
 				erc7 = DeleteObject(hfontPrint);
 				erc7 = DeleteObject(hfontPrintLar);
-
-				erc7 = DeleteObject(hfontPrint3020);
-				erc7 = DeleteObject(hfontPrint6050);
-
 				erc7 = DeleteObject(HBit);
 
 				bool erc20 = DeleteDC(hcdc);
 				bool erc8 = DeleteDC(hdc);
-
 
 			}	// end lock
 			return;
@@ -42751,12 +43172,8 @@ namespace epos {
 				}
 				if (addr2 != "")
 				{
-					//erc4 = SelectObject(hdc, hfontPrintLar);
-
 					erc5 = TextOut(hdc,5,yoffset,addr2,addr2.Length);
 					yoffset += lineincr * 2;
-
-					//erc4 = SelectObject(hdc, hfontPrint);
 				}
 				if (addr3 != "") {
 					erc5 = TextOut(hdc,5,yoffset,addr3,addr3.Length);
@@ -43571,11 +43988,13 @@ namespace epos {
 					}
 					//debugccip("outMessage.Length: " + outMessage.Length.ToString());
 					//debugccip("outMessage: " + outMessage.ToString());
-					if (outMessage.Length > 10 && printvalues)
-					{						
+
+					//*** START NEW
+					if (outMessage.Length > 10)
+					{
 						yoffset += lineincr * 2;	// 2 blank lines
 
-						if (DuplicateCopy == true)
+						if (DuplicateCopy)
 						{
 							line = "** DUPLICATE **";
 							line = CentraliseText(40, line);
@@ -43591,7 +44010,9 @@ namespace epos {
 							cpos2 = outMessage.IndexOf(",", cpos + 1);
 							if (cpos2 > -1)
 							{
+
 								line = outMessage.Substring(cpos + 1, cpos2 - cpos - 1);
+
 								if (line.Contains("** ") && line.Contains(" **"))
 								{
 									line = CentraliseText(30, line);
@@ -43600,6 +44021,7 @@ namespace epos {
 								{
 									line = "------------------------------";
 								}
+
 								if (line.Contains("?"))
 								{
 									if (currencysymbol.Length > 0)
@@ -43607,31 +44029,46 @@ namespace epos {
 									else
 										line = line.Replace("?", "£");
 								}
+								// IF LINE CONTAINS ':' THEN SPACE THIS OUT TO FILL THE 30 CHARS
+								//if (line.Contains(": "))
 								if (line.Contains(": "))
 								{
-									itextindent = 0;
-									stextindent = "";
-
-									itextindent = (30 - line.Length);
-									for (int textloop = 0; textloop < (itextindent - 1); textloop++)
+									if (textindent1.Contains("  ") && line.Contains("TOTAL"))
 									{
-										stextindent = stextindent + " ";
+										// DONT ADD SPACES WITH STAR PRINTERS WITH LARGER TEXT								
 									}
-									line = line.Replace(": ", ":  " + stextindent);
+									else
+									{
+										itextindent = 0;
+										stextindent = "";
+
+										itextindent = (30 - line.Length);
+										for (int textloop = 0; textloop < (itextindent - 1); textloop++)
+										{
+											stextindent = stextindent + " ";
+										}
+										line = line.Replace(": ", ":  " + stextindent);
+									}
 								}
 								if (line.Contains("TOTAL"))
 								{
+									yoffset += lineincr;
+
 									// use larger font.
 									erc4 = SelectObject(hdc, hfontPrintLar);
-									yoffset += lineincr * 2;
+
+									line = line.ToUpper();
+
+									if (textindent1.Length > 0 && textindent1 != "centre")
+										line = textindent1 + line;
 								}
 								if (line.Contains("Amount"))
 								{
 									// add line
-									yoffset += lineincr;
-									
+									//yoffset += lineincr;
+
 									// back to normal font
-									erc4 = SelectObject(hdc, hfontPrint);
+									//erc4 = SelectObject(hdc, hfontPrint);
 								}
 								if (line.Contains("DECLINED"))
 								{
@@ -43642,23 +44079,20 @@ namespace epos {
 									erc4 = SelectObject(hdc, hfontPrintLar);
 
 									line = line.ToUpper();
-									line = CentraliseText(30, line);
+
+									//DON'T CENTRALALISE WITH STAR PRINTER
+									if (textindent1 == "centre")
+										line = CentraliseText(30, line);
+									else if (textindent1.Length > 0)
+										line = textindent1 + textindent1 + line;
 								}
 								if (line.Contains("please") || line.Contains("VERIFIED") || line.Contains("verified") || line.Contains("PLEASE") || line.Contains("Please") && line.Length < 31)
 								{
-									// add blank line
-									yoffset += lineincr;
-
-									// back to normal font
-									erc4 = SelectObject(hdc, hfontPrint);
-
 									line = line.ToUpper();
 									line = CentraliseText(30, line);
 								}
 								if (line.Contains("MY ACCOUNT") || line.Contains("my account"))
 								{
-									// back to normal font
-									erc4 = SelectObject(hdc, hfontPrint);
 									line = line.ToUpper();
 								}
 								if (line.Length > 30)
@@ -43696,7 +44130,7 @@ namespace epos {
 								{
 									line = VERIFONEINDENT + line;
 									erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
-									yoffset += lineincr + 15;
+									yoffset += lineincr + lineincr;
 								}
 								cpos = outMessage.IndexOf(",", cpos2);
 								savedline = line;
@@ -43705,116 +44139,6 @@ namespace epos {
 								// revert to normal font.
 								erc4 = SelectObject(hdc, hfontPrint);
 
-								/*
-								line = outMessage.Substring(cpos + 1, cpos2 - cpos - 1);
-								if (line.Contains("** ") && line.Contains(" **"))
-								{
-									line = CentraliseText(30, line);
-								}
-								if (line.Contains("----------"))
-								{
-									line = "------------------------------";
-								}
-								if (line.Contains("?"))
-								{
-									if (currencysymbol.Length > 0)
-										line = line.Replace("?", currencysymbol);
-									else
-										line = line.Replace("?", "£");
-								}
-								if (line.Contains(": "))
-								{
-									int itextindent = 0;
-									string stextindent = "";
-
-									itextindent = (30 - line.Length);
-									for (int textloop = 0; textloop < (itextindent - 1); textloop++)
-									{
-										stextindent = stextindent + " ";
-									}
-									line = line.Replace(": ", ":  " + stextindent);
-								}
-								if (line.Contains("TOTAL"))
-								{
-									// use larger font.
-									erc4 = SelectObject(hdc, hfontPrintLar);
-									yoffset += lineincr;
-								}
-								if (line.Contains("Amount"))
-								{
-									// add line
-									yoffset += lineincr;
-								}
-								if (line.Contains("please") || line.Contains("VERIFIED") || line.Contains("verified") || line.Contains("PLEASE") || line.Contains("Please") && line.Length < 31)
-								{
-									// add blank line
-									yoffset += lineincr;
-
-									line = line.ToUpper();
-									line = CentraliseText(30, line);
-								}
-								if (line.Contains("VERIFIED") || line.Contains("verified"))
-								{
-									yoffset += lineincr;
-
-									// UPPERCASE
-									line = line.ToUpper();
-
-									// use larger font.
-									erc4 = SelectObject(hdc, hfontPrintLar);
-									yoffset += lineincr + 15;
-								}
-								if (line.Contains("MY ACCOUNT") || line.Contains("my account"))
-								{
-									// use larger font.
-									//erc4 = SelectObject(hdc, hfontPrintLar);
-									line = line.ToUpper();
-								}
-								if (line.Length > 30)
-								{
-									// longer than required line length
-									line = line.Trim();
-									try
-									{
-										string tmpstr = "";
-										for (int strPoint = line.Length; strPoint > 0; strPoint--)
-										{
-											if (line[strPoint - 1] == ' ' && tmpstr.Length > 20)
-											{
-												// first line
-												string line1str = line.Substring(0, 35 - tmpstr.Length);
-												line1str = CentraliseText(30, line1str);
-												line1str = VERIFONEINDENT + line1str;
-
-												erc5 = TextOut(hdc, 5, yoffset, line1str, line1str.Length);
-												yoffset += lineincr + 5;
-
-												// second line
-												line = CentraliseText(30, tmpstr);
-												break;
-											}
-											else
-												tmpstr = line[strPoint - 1] + tmpstr;
-										}
-									}
-									catch
-									{
-									}
-								 
-								}
-								if (line.Length > 0)
-								{
-									line = VERIFONEINDENT + line;
-									erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
-									yoffset += lineincr + 15;
-								}
-								cpos = outMessage.IndexOf(",", cpos2);
-								savedline = line;
-								ccount++;
-
-								// revert to normal font.
-								erc4 = SelectObject(hdc, hfontPrint);
-								*/
 							}
 							else // leave loop
 								cpos = -1;
@@ -43831,6 +44155,272 @@ namespace epos {
 						// Blank line after card voucher message
 						yoffset += lineincr;
 					}
+					//*** END NEW
+
+
+					//*** START OLD
+
+					//if (outMessage.Length > 10 && printvalues)
+					//{						
+					//	yoffset += lineincr * 2;	// 2 blank lines
+
+					//	if (DuplicateCopy == true)
+					//	{
+					//		line = "** DUPLICATE **";
+					//		line = CentraliseText(40, line);
+					//		erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+					//		yoffset += lineincr;
+					//	}
+
+					//	yoffset += lineincr;
+					//	cpos = outMessage.IndexOf(",", cpos + 1);
+					//	while (cpos > -1)
+					//	{
+					//		// epos receipt are 40 chars, VeriFone vouchers are 21
+					//		cpos2 = outMessage.IndexOf(",", cpos + 1);
+					//		if (cpos2 > -1)
+					//		{
+					//			line = outMessage.Substring(cpos + 1, cpos2 - cpos - 1);
+					//			if (line.Contains("** ") && line.Contains(" **"))
+					//			{
+					//				line = CentraliseText(30, line);
+					//			}
+					//			if (line.Contains("----------"))
+					//			{
+					//				line = "------------------------------";
+					//			}
+					//			if (line.Contains("?"))
+					//			{
+					//				if (currencysymbol.Length > 0)
+					//					line = line.Replace("?", currencysymbol);
+					//				else
+					//					line = line.Replace("?", "£");
+					//			}
+					//			if (line.Contains(": "))
+					//			{
+					//				itextindent = 0;
+					//				stextindent = "";
+
+					//				itextindent = (30 - line.Length);
+					//				for (int textloop = 0; textloop < (itextindent - 1); textloop++)
+					//				{
+					//					stextindent = stextindent + " ";
+					//				}
+					//				line = line.Replace(": ", ":  " + stextindent);
+					//			}
+					//			if (line.Contains("TOTAL"))
+					//			{
+					//				// use larger font.
+					//				erc4 = SelectObject(hdc, hfontPrintLar);
+					//				yoffset += lineincr * 2;
+					//			}
+					//			if (line.Contains("Amount"))
+					//			{
+					//				// add line
+					//				yoffset += lineincr;
+									
+					//				// back to normal font
+					//				erc4 = SelectObject(hdc, hfontPrint);
+					//			}
+					//			if (line.Contains("DECLINED"))
+					//			{
+					//				// add blank line
+					//				yoffset += lineincr;
+
+					//				// use larger font.
+					//				erc4 = SelectObject(hdc, hfontPrintLar);
+
+					//				line = line.ToUpper();
+					//				line = CentraliseText(30, line);
+					//			}
+					//			if (line.Contains("please") || line.Contains("VERIFIED") || line.Contains("verified") || line.Contains("PLEASE") || line.Contains("Please") && line.Length < 31)
+					//			{
+					//				// add blank line
+					//				yoffset += lineincr;
+
+					//				// back to normal font
+					//				erc4 = SelectObject(hdc, hfontPrint);
+
+					//				line = line.ToUpper();
+					//				line = CentraliseText(30, line);
+					//			}
+					//			if (line.Contains("MY ACCOUNT") || line.Contains("my account"))
+					//			{
+					//				// back to normal font
+					//				erc4 = SelectObject(hdc, hfontPrint);
+					//				line = line.ToUpper();
+					//			}
+					//			if (line.Length > 30)
+					//			{
+					//				// longer than required line length
+					//				line = line.Trim();
+					//				try
+					//				{
+					//					string tmpstr = "";
+					//					for (int strPoint = line.Length; strPoint > 0; strPoint--)
+					//					{
+					//						if (line[strPoint - 1] == ' ' && tmpstr.Length > 20)
+					//						{
+					//							// first line
+					//							string line1str = line.Substring(0, 35 - tmpstr.Length);
+					//							line1str = CentraliseText(30, line1str);
+					//							line1str = VERIFONEINDENT + line1str;
+
+					//							erc5 = TextOut(hdc, 5, yoffset, line1str, line1str.Length);
+					//							yoffset += lineincr + 5;
+
+					//							// second line
+					//							line = CentraliseText(30, tmpstr);
+					//							break;
+					//						}
+					//						else
+					//							tmpstr = line[strPoint - 1] + tmpstr;
+					//					}
+					//				}
+					//				catch
+					//				{
+					//				}
+					//			}
+					//			if (line.Length > 0)
+					//			{
+					//				line = VERIFONEINDENT + line;
+					//				erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+					//				yoffset += lineincr + 15;
+					//			}
+					//			cpos = outMessage.IndexOf(",", cpos2);
+					//			savedline = line;
+					//			ccount++;
+
+					//			// revert to normal font.
+					//			erc4 = SelectObject(hdc, hfontPrint);
+
+					//			/*
+					//			line = outMessage.Substring(cpos + 1, cpos2 - cpos - 1);
+					//			if (line.Contains("** ") && line.Contains(" **"))
+					//			{
+					//				line = CentraliseText(30, line);
+					//			}
+					//			if (line.Contains("----------"))
+					//			{
+					//				line = "------------------------------";
+					//			}
+					//			if (line.Contains("?"))
+					//			{
+					//				if (currencysymbol.Length > 0)
+					//					line = line.Replace("?", currencysymbol);
+					//				else
+					//					line = line.Replace("?", "£");
+					//			}
+					//			if (line.Contains(": "))
+					//			{
+					//				int itextindent = 0;
+					//				string stextindent = "";
+
+					//				itextindent = (30 - line.Length);
+					//				for (int textloop = 0; textloop < (itextindent - 1); textloop++)
+					//				{
+					//					stextindent = stextindent + " ";
+					//				}
+					//				line = line.Replace(": ", ":  " + stextindent);
+					//			}
+					//			if (line.Contains("TOTAL"))
+					//			{
+					//				// use larger font.
+					//				erc4 = SelectObject(hdc, hfontPrintLar);
+					//				yoffset += lineincr;
+					//			}
+					//			if (line.Contains("Amount"))
+					//			{
+					//				// add line
+					//				yoffset += lineincr;
+					//			}
+					//			if (line.Contains("please") || line.Contains("VERIFIED") || line.Contains("verified") || line.Contains("PLEASE") || line.Contains("Please") && line.Length < 31)
+					//			{
+					//				// add blank line
+					//				yoffset += lineincr;
+
+					//				line = line.ToUpper();
+					//				line = CentraliseText(30, line);
+					//			}
+					//			if (line.Contains("VERIFIED") || line.Contains("verified"))
+					//			{
+					//				yoffset += lineincr;
+
+					//				// UPPERCASE
+					//				line = line.ToUpper();
+
+					//				// use larger font.
+					//				erc4 = SelectObject(hdc, hfontPrintLar);
+					//				yoffset += lineincr + 15;
+					//			}
+					//			if (line.Contains("MY ACCOUNT") || line.Contains("my account"))
+					//			{
+					//				// use larger font.
+					//				//erc4 = SelectObject(hdc, hfontPrintLar);
+					//				line = line.ToUpper();
+					//			}
+					//			if (line.Length > 30)
+					//			{
+					//				// longer than required line length
+					//				line = line.Trim();
+					//				try
+					//				{
+					//					string tmpstr = "";
+					//					for (int strPoint = line.Length; strPoint > 0; strPoint--)
+					//					{
+					//						if (line[strPoint - 1] == ' ' && tmpstr.Length > 20)
+					//						{
+					//							// first line
+					//							string line1str = line.Substring(0, 35 - tmpstr.Length);
+					//							line1str = CentraliseText(30, line1str);
+					//							line1str = VERIFONEINDENT + line1str;
+
+					//							erc5 = TextOut(hdc, 5, yoffset, line1str, line1str.Length);
+					//							yoffset += lineincr + 5;
+
+					//							// second line
+					//							line = CentraliseText(30, tmpstr);
+					//							break;
+					//						}
+					//						else
+					//							tmpstr = line[strPoint - 1] + tmpstr;
+					//					}
+					//				}
+					//				catch
+					//				{
+					//				}
+								 
+					//			}
+					//			if (line.Length > 0)
+					//			{
+					//				line = VERIFONEINDENT + line;
+					//				erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+					//				yoffset += lineincr + 15;
+					//			}
+					//			cpos = outMessage.IndexOf(",", cpos2);
+					//			savedline = line;
+					//			ccount++;
+
+					//			// revert to normal font.
+					//			erc4 = SelectObject(hdc, hfontPrint);
+					//			*/
+					//		}
+					//		else // leave loop
+					//			cpos = -1;
+					//	}
+
+					//	if (DuplicateCopy == true)
+					//	{
+					//		line = "** DUPLICATE **";
+					//		line = CentraliseText(40, line);
+					//		erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
+					//		yoffset += lineincr;
+					//		DuplicateCopy = false;
+					//	}
+					//	// Blank line after card voucher message
+					//	yoffset += lineincr;
+					//}
+					//** END
 				}
 				catch (Exception ex)
 				{
@@ -46288,8 +46878,24 @@ namespace epos {
 							}
 							line = stextindent + printvouch.VoucherMsg;
 						}
+						if (textindent2 == "centrestar")
+						{
+							// centre voucher message
+							itextindent = 0;
+							stextindent = "";
+
+							//STAR PRINTERS, WORK OUT CENTRE FROM SIZE OF PPI
+							int linelength = 65 - (largeppi/10);
+
+							itextindent = ((linelength - printvouch.VoucherMsg.Length) / 2);
+							for (int textloop = 0; textloop < itextindent; textloop++)
+							{
+								stextindent = stextindent + " ";
+							}
+							line = stextindent + printvouch.VoucherMsg;
+						}
 						else
-							line = textindent1 + printvouch.VoucherMsg;
+							line = textindent2 + printvouch.VoucherMsg;
 
 						erc5 = TextOut(hdc, 5, yoffset, line, line.Length);
 						yoffset += lineincr;
@@ -46312,6 +46918,20 @@ namespace epos {
 						stextindent = "";
 
 						itextindent = (40 - ("VALUE: " + replacevars("$PND") + printvouch.VoucherValue.ToString("F02")).Length) / 2;
+						for (int textloop = 0; textloop < itextindent; textloop++)
+						{
+							stextindent = stextindent + " ";
+						}
+						line = stextindent + "VALUE: " + replacevars("$PND") + printvouch.VoucherValue.ToString("F02");
+					}
+					if (textindent2 == "centrestar")
+					{
+						// centre voucher message
+						itextindent = 0;
+						stextindent = "";
+						int linelength = 65 - (largeppi / 10);
+
+						itextindent = (linelength - ("VALUE: " + replacevars("$PND") + printvouch.VoucherValue.ToString("F02")).Length) / 2;
 						for (int textloop = 0; textloop < itextindent; textloop++)
 						{
 							stextindent = stextindent + " ";
@@ -47048,6 +47668,8 @@ namespace epos {
 #if PRINT_TO_FILE
 					//MessageBox.Show("msg: " + msg, "OposCustomerDisplay: " + EpsonCustomerDisplay);
 #endif
+	// 2016-11-09 SL - OPOS DISPLAY ONLY (HoB) >>
+#if OPOS_DISPLAY
 					OPOSDISPLib.OPOSDISPClass oposId = new OPOSDISPLib.OPOSDISPClass();
 					oposId.Open(OposCustomerDisplay);
 					oposId.Claim(1000);
@@ -47056,6 +47678,8 @@ namespace epos {
 					oposId.DeviceEnabled = false;
 					oposId.Release();
 					oposId.Close();
+#endif
+	// 2016-11-09 SL - OPOS DISPLAY ONLY (HoB) ^^
 				}
 			}
 			catch (Exception ex)

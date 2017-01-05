@@ -7,7 +7,6 @@ using System.Text;
 using System.Windows.Forms;
 #if DIRECTX
 using Microsoft.DirectX;
-//using Microsoft.DirectX.Direct3D;
 using Microsoft.DirectX.AudioVideoPlayback;
 #endif
 using System.Runtime.InteropServices;
@@ -16,27 +15,56 @@ namespace epos
 {
 	public partial class MovieForm : Form
 	{
-#if DIRECTX
+//#if DIRECTX || WMP
 		[DllImport("user32.dll")]
 		protected static extern int ShowCursor(int bShow);
+
+#if WMP
+		private AxWMPLib.AxWindowsMediaPlayer axWindowsMediaPlayer1;
+#endif
+#if DIRECTX
+		private Video secVideo;
+#endif
 
 		public MovieForm()
 		{
 			InitializeComponent();
 		}
-		private Video secVideo;
 
-		public bool createVideo(string videoName, int videoHeight, int VideoWidth)
+		public bool createVideo(string videoName, int videoHeight, int VideoWidth, string playerType)
 		{
 			try
 			{
-				if ((secVideo == null) && (videoName.Length != 0))
-				{
-					secVideo = new Video(videoName, true);
-					secVideo.Owner = this;
-					secVideo.Size = new Size(VideoWidth, videoHeight);
-					secVideo.HideCursor();
+#if WMP
+				if (playerType == "WMP")//WindowsMediaPlayer
+				{					
+					if (videoName.Length > 0)
+					{ 
+						axWindowsMediaPlayer1 = new AxWMPLib.AxWindowsMediaPlayer();
+
+						axWindowsMediaPlayer1.CreateControl();
+
+						axWindowsMediaPlayer1.Parent = this;
+						axWindowsMediaPlayer1.enableContextMenu = false;
+						axWindowsMediaPlayer1.Size = new Size(VideoWidth, videoHeight);
+						//axWindowsMediaPlayer1.URL = videoName;
+						axWindowsMediaPlayer1.openPlayer(videoName);
+						axWindowsMediaPlayer1.Show();
+					}
 				}
+#endif
+#if DIRECTX
+				if (playerType == "DIRECTX")
+				{
+					if ((secVideo == null) && (videoName.Length != 0))
+					{
+						secVideo = new Video(videoName, true);
+						secVideo.Owner = this;
+						secVideo.Size = new Size(VideoWidth, videoHeight);
+						secVideo.HideCursor();
+					}
+				}
+#endif
 			}
 			catch (Exception ex)
 			{
@@ -44,50 +72,19 @@ namespace epos
 				return false;
 			}
 			return true;
-			//if ((secVideo == null) && (videoName.Length != 0))
-			//{
-			//    try
-			//    {
-			//        secVideo = new Video(videoName, true);
-			//        moviePanel.Size = new Size(VideoWidth, videoHeight);
-			//    }
-			//    catch (Exception ex)
-			//    {
-			//        MessageBox.Show("Unable to set video " + videoName + ": " + ex.Message);
-			//        return false;
-			//    }
-			//    try
-			//    {
-			//        secVideo.Size = new Size(VideoWidth, videoHeight);
-			//        secVideo.HideCursor();
-			//    }
-			//    catch (Exception ex)
-			//    {
-			//        MessageBox.Show("secVideo.Owner, Exception: " + ex.Message);
-			//        return false;
-			//    }
-			//}
-			//return true;
 		}
-		//public void setMovieOwner(int videoHeight, int VideoWidth)
-		//{
-		//    try
-		//    {
-		//        if (secVideo != null)
-		//        {				
-		//            secVideo.Owner = this.moviePanel;
-		//            moviePanel.Size = new Size(VideoWidth, videoHeight);
-		//        }			
-		//    }
-		//    catch (Exception exc)
-		//    {
-		//        MessageBox.Show("setMovieOwner: " + exc.Message);
-		//    }
-		//}
+
 		public void playVideo()
 		{
 			try
 			{
+#if WMP
+				if (axWindowsMediaPlayer1 != null)
+				{
+					axWindowsMediaPlayer1.Ctlcontrols.play();
+				}
+#endif
+#if DIRECTX
 				if (secVideo != null)
 				{
 					if (!secVideo.Playing)
@@ -103,6 +100,7 @@ namespace epos
 					if (movieTimer.Enabled == false)
 						movieTimer.Enabled = true;
 				}
+#endif
 			}
 			catch (Exception exc)
 			{
@@ -113,6 +111,13 @@ namespace epos
 		{
 			try
 			{
+#if WMP
+				if (axWindowsMediaPlayer1 != null)
+				{
+					axWindowsMediaPlayer1.Ctlcontrols.pause();
+				}
+#endif
+#if DIRECTX
 				if (secVideo != null)
 				{
 					if (!secVideo.Paused)
@@ -120,6 +125,7 @@ namespace epos
 					if (movieTimer.Enabled)
 						movieTimer.Enabled = false;
 				}
+#endif
 			}
 			catch (Exception exc)
 			{
@@ -130,10 +136,18 @@ namespace epos
 		{
 			try
 			{
+#if WMP
+				if (axWindowsMediaPlayer1 != null)
+				{
+					axWindowsMediaPlayer1.Ctlcontrols.stop();
+				}
+#endif
+#if DIRECTX
 				if (secVideo != null)
 				{
 					secVideo.StopWhenReady();
 				}
+#endif
 			}
 			catch (Exception exc)
 			{
@@ -145,11 +159,6 @@ namespace epos
 		{
 			this.TransparencyKey = System.Drawing.Color.Lime;
 			this.BackColor = System.Drawing.Color.Lime;
-
-			//this.moviePanel.Height = 768;
-			//this.moviePanel.Width = 1280;
-			//this.moviePanel.Top = 0;
-			//this.moviePanel.Left = 0;
 		}
 		private void movieTimer_Tick(object sender, EventArgs e)
 		{
@@ -162,6 +171,6 @@ namespace epos
 				MessageBox.Show("movieTimer_Tick: " + exc.Message);
 			}
 		}
-	#endif
+//#endif
 	}
 }

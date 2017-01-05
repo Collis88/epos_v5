@@ -15,7 +15,7 @@ namespace epos
 		private const int cbmax = 6;
 		private const int labmax = 66; // 60
 		private const int stmax = 70;
-		private const int xbmax = 5;
+		private const int xbmax = 9; //5 2016-11-02 SL E-RECEIPT
 
 		private bool initialised;
 		public string [] labtext = new string[labmax];

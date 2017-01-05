@@ -1,7 +1,7 @@
 #define GETMENU
 #define GETREPORT
 using System;
-using System.Runtime.InteropServices;
+//using System.Runtime.InteropServices;
 using System.Xml;
 using System.Text;
 using System.IO;
@@ -42,8 +42,8 @@ namespace epos
 
 		private string xmlhdr()
 		{
-			//return "<?xml version='1.0'?>" + CRLF;
-			return "<?xml version=\"1.0\"?>" + CRLF;
+			return "<?xml version='1.0'?>" + CRLF;
+			//return "<?xml version=\"1.0\"?>" + CRLF;
 		}
 		private string startxml(string name)
 		{
@@ -62,35 +62,74 @@ namespace epos
 
 		#region sendingxml
 
+		private int sendxml22XX(string program, string code_type, string reference,  string xml_in, bool returnsxml, bool retrying, out string xml_out, out int status_out, out string errmsg_out)
+		{
+			int erc = -1;
+			returnsxml = false;
+			retrying = false;
+			xml_out = "";
+			status_out = -1;
+			errmsg_out = "";
+			try
+			{
+				String return_xml = "";
+				String return_msg = "";
+
+#if TRH109
+				UNIFACE_trh109.trh109 uniapi = new UNIFACE_trh109.trh109();
+#endif
+#if TRH108
+				UNIFACE_trh108.trh108 uniapi = new UNIFACE_trh108.trh108();
+#endif
+#if TRH107
+				UNIFACE_trh107.trh107 uniapi = new UNIFACE_trh107.trh107();
+#endif
+#if TRH106
+				UNIFACE_trh106.trh106 uniapi = new UNIFACE_trh106.trh106();
+#endif
+
+				//StringBuilder return_xml = new StringBuilder(1000000);
+				//StringBuilder return_msg = new StringBuilder(5000);
+
+				Int32 return_status = -99;
+				Int32 code_type_int = Convert.ToInt32(code_type);
+				string xml_in_tmp = "<?xml version='1.0'?><POS_LOGIN_IN><POS_DATA_IN.XMLDB><USER_NAME>963</USER_NAME><PASSWD>963</PASSWD><TILL_NUMBER>1</TILL_NUMBER></POS_DATA_IN.XMLDB></POS_LOGIN_IN>";
+				//UNIFACE_trh107.trh107 elucidObject = new UNIFACE_trh107.trh107();
+				erc = uniapi.elucid_generic_api("POS", 1, "POS001", xml_in_tmp, out return_xml, out return_status, out return_msg);
+				//erc = elucidObject.elucid_generic_api(program, code_type_int, reference, xml_in_tmp, out xml_out, out status_out, out errmsg_out);
+			}
+			catch
+			{
+			}
+			return erc;
+		}
+
 		private int sendxml2(string program, string code_type, string reference,  string xml_in, bool returnsxml, bool retrying, out string xml_out, out int status_out, out string errmsg_out)
 		{
 			int erc;
-			int statusret=-99;
-			string xmlret="";
-			string errmsgret="";
-			int code_type_int = Convert.ToInt32(code_type);
+			int statusret = -99;
+			string xmlret = "";
+			string errmsgret = "";
 			string xmldbg = "InputXml for call:" + code_type + " -->" + CRLF + "(" + xml_in + ")";
-			//string xmldbg = "<!--InputXml for call:" + code_type + " -->" + CRLF + "(" + xml_in + ")-->";
+			Int32 code_type_int = -1;
 			try
 			{
-				// 2016-09-07 - SL - V2 -> V5 UPGRADE >>
+				code_type_int = Convert.ToInt32(code_type);
+				//trh100Class uniapi = new trh100Class();
+
 #if TRH109
-				UNIFACE_trh109.trh109 elucidObject = new UNIFACE_trh109.trh109();
+				UNIFACE_trh109.trh109 uniapi = new UNIFACE_trh109.trh109();
 #endif
 #if TRH108
-				UNIFACE_trh108.trh108 elucidObject = new UNIFACE_trh108.trh108();
+				UNIFACE_trh108.trh108 uniapi = new UNIFACE_trh108.trh108();
 #endif
 #if TRH107
-				UNIFACE_trh107.trh107 elucidObject = new UNIFACE_trh107.trh107();
+				// trh is linked the correct Uniface version (presently v92)
+				UNIFACE_trh107.trh107 uniapi = new UNIFACE_trh107.trh107();
 #endif
 #if TRH106
-				UNIFACE_trh106.trh106 elucidObject = new UNIFACE_trh106.trh106();
+				UNIFACE_trh106.trh106 uniapi = new UNIFACE_trh106.trh106();
 #endif
-				// 2016-09-07 - SL - V2 -> V5 UPGRADE ^^
-
-				//				trh100Class uniapi = new trh100Class();
-
-
 				TimeSpan xxx = DateTime.Now - lastcalltime;
 				if (xxx.TotalMilliseconds > mincalldelay)
 				{
@@ -103,16 +142,7 @@ namespace epos
 				lastcalltime = DateTime.Now;
 
 				erc = -1;
-				// 2016-09-08 - SL - V2 -> V5 UPGRADE >>
-				//StringBuilder xml_ret = new StringBuilder(1000000);
-				//StringBuilder errmsg_ret = new StringBuilder(5000);
-				string xml_ret = "";
-				string errmsg_ret = "";
-				// 2016-09-08 - SL - V2 -> V5 UPGRADE ^^
-
-				erc = elucidObject.elucid_generic_api(program, code_type_int, reference, xml_in, out xml_ret, out statusret, out errmsg_ret);
-				xmlret = xml_ret.ToString();
-				errmsgret = errmsg_ret.ToString();
+				erc = uniapi.elucid_generic_api(program, code_type_int, reference, xml_in, out  xmlret, out statusret, out errmsgret);
 
 				xml_out = xmlret;
 				xmldbg = xmldbg + "OutputXml->" + CRLF + "(" + xml_out + ")";
@@ -159,10 +189,11 @@ namespace epos
 						debugxml(xmldbg, true, code_type);
 					erc = -999;
 				}
+
 			}
 			finally
 			{
-                //erc = null;
+				//erc = null;
 			}
 			return erc;
 		}
@@ -176,7 +207,7 @@ namespace epos
             {
                 MainForm.callingDLL = true;
 
-                erc = sendxml2(program, code_type, reference, xml_in, returnsxml, false, out xml_out, out status_out, out errmsg_out);
+	            erc = sendxml2(program, code_type, reference, xml_in, returnsxml, false, out xml_out, out status_out, out errmsg_out);
 
                 if ((erc == -57) || (erc == 57) || (status_out == -57) || (status_out == 57))
                 {	// instantiate problem
@@ -2530,8 +2561,6 @@ namespace epos
 				part.TaxValue = 0.0M;
 			}
 
-
-
 			part_offrs = child.SelectNodes("PART_OFFR.PSEDB");
 			part.OfferData.Clear();
 			if (part_offrs.Count > 0) {
@@ -2539,7 +2568,15 @@ namespace epos
 				foreach (XmlNode part_offr in part_offrs) {
 					try {
 						string offr_part = part_offr.SelectSingleNode("OFFR_PART").InnerXml;
-						string offr_qty = part_offr.SelectSingleNode("QTY").InnerXml;
+						string offr_qty = "";
+						try
+						{
+							offr_qty = part_offr.SelectSingleNode("QTY").InnerXml;
+						}
+						catch
+						{
+							offr_qty = part_offr.SelectSingleNode("QTY.PART_OFFR.PSEDB").InnerXml;
+						}
 						decimal doffr_qty = decimal.Parse(offr_qty);
 						partofferdata pod = new partofferdata(offr_part,doffr_qty);
 						part.OfferData.Add(idx,pod);
@@ -3034,7 +3071,7 @@ namespace epos
 				debugxml(outxml, false, "10");
 #endif
 
-#if STO_P_TRH
+#if STOP_TRH
 				status_ret = 0;
 				errmsg_ret = "Successful Update";
 #else
@@ -3429,6 +3466,12 @@ namespace epos
 						catch
 						{
 							res.lns[idx].CustType = "";
+							res.lns[idx].CustTypeDesc = "";
+		
+						}
+						// IF ##FIELD NOT FOUND## THEN BLANK STRING
+						if (res.lns[idx].CustTypeDesc.Contains("##") && res.lns[idx].CustTypeDesc.Contains("FOUND"))
+						{
 							res.lns[idx].CustTypeDesc = "";
 						}
 					}

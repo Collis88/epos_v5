@@ -66,7 +66,7 @@ namespace epos {
 		//5.006	SL	2016-11-08	JoJo- Add City field to update customer SQL.
 		//5.007	SL	2016-11-16	JoJo- Fix STAR TSP100 issue with larger text size
 		//5.008	SL	2016-12-01	Axminster- fixes to issue 18 from SharePoint list. (Cancel on Cheque screen)
-		//5.009	SL	2017-01-09	JoJo- Fix Email Issue 2 (MBL card balance after redemsion)
+		//5.009	SL	2017-01-09	JoJo- Fix Email Issue 2/ Contactsless Declines 3 (MBL card balance after redemsion)
 
 		public const int DIGIPOS_DRAWER_CMD = 0x48F;
 
@@ -40964,7 +40964,7 @@ namespace epos {
 					StringBuilder messages = new StringBuilder(2048);
 
 					bool myloop = true;
-					int exitloop = 0;
+					//int exitloop = 0;
 					while (myloop)
 					{
 						bytes = s.Receive(RecvBytes, RecvBytes.Length, 0);
@@ -41022,8 +41022,8 @@ namespace epos {
 								}
 								if (line.StartsWith("100,"))
 								{
-								// STEP COMPLETE.
-									if (line.Contains(",Merchant print complete"))
+									// STEP COMPLETE.
+									if (line.Contains(",Merchant print complete") || line.Contains(",,Merchant print com")) //2017-01-10 SL
 									{
 										merchantCopy = false;
 										buildingReceipt = false;
@@ -41043,7 +41043,7 @@ namespace epos {
 										}
 									}
 									//else if (line.Contains(",Cardholder print co"))
-									else if (line.Contains(",Cardholder print complete"))
+									else if (line.Contains(",Cardholder print complete") || line.Contains(",,Cardholder print com"))
 									{
 										if (cardholderVoucherMessage.Length > 0)
 										{
@@ -41111,16 +41111,16 @@ namespace epos {
 						else
 						{
 							//debugccip("0 bytes...");
-							if (exitloop > 99)
-							{
-								debugccip("0 bytes, exitloop: " + exitloop.ToString());
-								exitloop = 0;
-								myloop = false;
-							}
-							else
-							{
-								exitloop++;
-							}
+							//if (exitloop > 99)
+							//{
+							//	debugccip("0 bytes, exitloop: " + exitloop.ToString());
+							//	exitloop = 0;
+							//	myloop = false;
+							//}
+							//else
+							//{
+							//	exitloop++;
+							//}
 						}
 					}// end while loop - get next message
 				}
@@ -41285,10 +41285,10 @@ namespace epos {
 					StringBuilder messages = new StringBuilder(2048);
 
 					bool myloop = true;
-					int loopCount = 0;
-					while (myloop && loopCount < 100)
+					//int loopCount = 0;
+					while (myloop)// && loopCount < 100)
 					{
-						loopCount++;
+						//loopCount++;
 						bytes = s.Receive(RecvBytes, RecvBytes.Length, 0);
 						if (bytes > 3)
 						{
@@ -41323,7 +41323,7 @@ namespace epos {
 							messages.Append(strRetPage);
 						}
 					}
-					loopCount = 0;
+					//loopCount = 0;
 				}
 
 				// clean up

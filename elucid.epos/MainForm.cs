@@ -45,7 +45,7 @@ namespace epos {
 
 	public class MainForm : System.Windows.Forms.Form
 	{
-		public static string Version = "EPoS Version 5.007";
+		public static string Version = "EPoS Version 5.009";
 
 		//2.973	SL				JoJo cust SP functionality from v2
 		//2.974	SL				JoJo MBL + fixes + IP Offline
@@ -66,6 +66,7 @@ namespace epos {
 		//5.006	SL	2016-11-08	JoJo- Add City field to update customer SQL.
 		//5.007	SL	2016-11-16	JoJo- Fix STAR TSP100 issue with larger text size
 		//5.008	SL	2016-12-01	Axminster- fixes to issue 18 from SharePoint list. (Cancel on Cheque screen)
+		//5.009	SL	2017-01-09	JoJo- Fix Email Issue 2 (MBL card balance after redemsion)
 
 		public const int DIGIPOS_DRAWER_CMD = 0x48F;
 
@@ -2380,9 +2381,9 @@ namespace epos {
 
 				zDebugWriter.Close();
 			}
-			catch (Exception ex)
+			catch// (Exception ex)
 			{
-				MessageBox.Show(ex.Message);
+				//MessageBox.Show(ex.Message);
 			}
 			return;
 		}
@@ -11952,8 +11953,23 @@ namespace epos {
 							}
 							else
 							{
-								changetext("L_HDG7", "Successful transaction / Balance = £" + giftcardRedemptionList.lns[iGiftCard].Value.ToString());
-								Application.DoEvents();
+								// 2017-01-09 SL - JOJO E-RECEIPT/MBL FIXES >>
+								// re-check balance
+								currentgiftcard.createBalanceRequestMsg(printRedeemGiftCardVouch.CardNumber, currentorder.OrderNumber);
+								erc = elucid.givexvoucher(id, currentgiftcard);
+								if (erc == 0)
+								{
+									currentgiftcard.decipherBalanceCheckResult(giftcardtestcardvalue);
+									if (currentgiftcard.Result == 0)
+									{
+										giftcardRedemptionList.lns[iGiftCard].Value = currentgiftcard.Value;
+										changetext("L_HDG7", "Successful transaction / Balance = £" + giftcardRedemptionList.lns[iGiftCard].Value.ToString());
+										Application.DoEvents();
+									}
+								}
+								//changetext("L_HDG7", "Successful transaction / Balance = £" + giftcardRedemptionList.lns[iGiftCard].Value.ToString());
+								//Application.DoEvents();
+								// 2017-01-09 SL - JOJO E-RECEIPT/MBL FIXES ^^
 							}
 						}
 					}
@@ -12016,7 +12032,21 @@ namespace epos {
 							}
 							else
 							{
-								changetext("L_HDG7", "Balance = £" + giftcardReversalList.lns[iGiftCard].Value.ToString());
+								// 2017-01-09 SL - JOJO E-RECEIPT/MBL FIXES >>
+								// re-check balance
+								currentgiftcard.createBalanceRequestMsg(giftcardReversalList.lns[iGiftCard].CardNo, currentorder.OrderNumber);
+								erc = elucid.givexvoucher(id, currentgiftcard);
+								if (erc == 0)
+								{
+									currentgiftcard.decipherBalanceCheckResult(giftcardtestcardvalue);
+									if (currentgiftcard.Result == 0)
+									{
+										giftcardReversalList.lns[iGiftCard].Value = currentgiftcard.Value;
+										changetext("L_HDG7", "Balance = £" + (giftcardReversalList.lns[iGiftCard].Value).ToString());
+									}
+								}
+								//changetext("L_HDG7", "Balance = £" + (giftcardReversalList.lns[iGiftCard].Value).ToString());
+								// 2017-01-09 SL - JOJO E-RECEIPT/MBL FIXES ^^
 								Application.DoEvents();
 							}
 						}
@@ -21676,18 +21706,18 @@ namespace epos {
 						elucid.validatepart(id, currentpart, currentcust, false);
 						imagefile = currentpart.PartNumber + ".jpg";
 						bool imageFound = loadimage("IMAGE1", imagefile);
-						if ((imageFound) || (currentpart.FullDescription == ""))
-						{
-							// sjl, 16/09/2008: new state to show only description.
-							newstate(32);
-							this.loadfulldesc("L_FULLDESC", currentpart.FullDescription);
-							loadimage("IMAGE1", imagefile);
-						}
-						else
-						{
-							newstate(74);
-							this.loadfulldesc("L_FULLDESC2", currentpart.FullDescription);
-						}
+						//if ((imageFound) || (currentpart.FullDescription == ""))
+						//{
+						//	// sjl, 16/09/2008: new state to show only description.
+						//	newstate(32);
+						//	this.loadfulldesc("L_FULLDESC", currentpart.FullDescription);
+						//	loadimage("IMAGE1", imagefile);
+						//}
+						//else
+						//{
+						//	newstate(74);
+						//	this.loadfulldesc("L_FULLDESC2", currentpart.FullDescription);
+						//}
 					}
 				}
 				if (eventdata == "WEBPAGE") // image
@@ -39435,7 +39465,9 @@ namespace epos {
 								sqlfallbackstate();
 							}
 						}
-						catch { }
+						catch(Exception ex ) {
+							zdebug(ex.Message);
+						}
 						finally
 						{
 							//waitpopup(false);

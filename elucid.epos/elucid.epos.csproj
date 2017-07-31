@@ -65,7 +65,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>bin\x86\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;PRINT_TO_FILE;DIR_ECTX;TRH107;WMP</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;PRINT_TO_FILE;DIR_ECTX;TRH107;W_MP</DefineConstants>
     <DebugType>full</DebugType>
     <PlatformTarget>x86</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>

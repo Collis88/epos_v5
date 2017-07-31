@@ -764,4 +764,51 @@ namespace epos
 			this.mPartType = src.PartType;
 		}
 	}
+	//2017-07-18 SL - 2.9.7.17 >>
+	public class addressdata
+	{
+		string mPostcode;
+		string mAddress;
+		string mCity;
+
+		public string Postcode
+		{
+			get
+			{
+				return this.mPostcode;
+			}
+			set
+			{
+				mPostcode = value;
+			}
+		}
+		public string Address
+		{
+			get
+			{
+				return this.mAddress;
+			}
+			set
+			{
+				mAddress = value;
+			}
+		}
+		public string City
+		{
+			get
+			{
+				return this.mCity;
+			}
+			set
+			{
+				mCity = value;
+			}
+		}
+		public addressdata()
+		{
+			mPostcode = "";
+			mAddress = "";
+		}
+	}
+	//2017-07-18 SL - 2.9.7.17 ^^
 }

@@ -84,4 +84,32 @@ namespace epos
                 lns[idx] = new epos.partdata.flightdata();
         }
     }
+	//2017-07-18 SL - 2.9.7.17 >>
+	public class addresslist
+	{
+		private int mNumLines;
+		public addressdata[] lns = new addressdata[200];
+
+		public int NumLines
+		{
+			get
+			{
+				return mNumLines;
+			}
+			set
+			{
+				mNumLines = value;
+			}
+		}
+		public addresslist()
+		{
+			int idx;
+			//
+			// TODO: Add constructor logic here
+			//
+			for (idx = 0; idx < 200; idx++)
+				lns[idx] = new addressdata();
+		}
+	}
+	//2017-07-18 SL - 2.9.7.17 ^^
 }

@@ -45,28 +45,37 @@ namespace epos {
 
 	public class MainForm : System.Windows.Forms.Form
 	{
-		public static string Version = "EPoS Version 5.009";
+		public static string Version = "EPoS Version 5.00.16";
 
-		//2.973	SL				JoJo cust SP functionality from v2
-		//2.974	SL				JoJo MBL + fixes + IP Offline
-		//2.975	SL				Axminster post go live issues
-		//2.976	SL	2016-08-04	JoJo- Customer capture changes
-		//2.976	SL	2016-08-04	Axminster- address update fix
-		//2.976	SL	2016-08-08	Axminster- send blank site to stock view
-		//2.976	SL	2016-08-16	JoJo- blank connection string as default
-		//2.976	SL	2016-09-02	Axminster- fixes to issue 11 from SharePoint list.
-		//5.000	SL	2016-09-07	V2 to V5 Upgrade
-		//5.001	SL	2016-09-07	V3 to V5 Upgrade
-		//5.002	SL	2016-09-09	V4 to V5 Upgrade
-		//5.003	SL	2016-09-14	Added TRH107 (Uniface9701)
-		//5.004	SL	2016-09-22	IF NO DISOUNT ALREADY ON THE LINE, CLEAR PARAM FOR PRICE CALL
-		//5.005	SL	2016-10-20	Axminster- Don't change kit price on order discount.
-		//5.006	SL	2016-11-02	JoJo- E-Reciept, add extra tick box
-		//5.006	SL	2016-11-08	Axminster- SharePoint Issue 17, zero price after part search
-		//5.006	SL	2016-11-08	JoJo- Add City field to update customer SQL.
-		//5.007	SL	2016-11-16	JoJo- Fix STAR TSP100 issue with larger text size
-		//5.008	SL	2016-12-01	Axminster- fixes to issue 18 from SharePoint list. (Cancel on Cheque screen)
-		//5.009	SL	2017-01-09	JoJo- Fix Email Issue 2/ Contactsless Declines 3 (MBL card balance after redemsion)
+		//2.973		SL				JoJo cust SP functionality from v2
+		//2.974		SL				JoJo MBL + fixes + IP Offline
+		//2.975		SL				Axminster post go live issues
+		//2.976		SL	2016-08-04	JoJo- Customer capture changes
+		//2.976		SL	2016-08-04	Axminster- address update fix
+		//2.976		SL	2016-08-08	Axminster- send blank site to stock view
+		//2.976		SL	2016-08-16	JoJo- blank connection string as default
+		//2.976		SL	2016-09-02	Axminster- fixes to issue 11 from SharePoint list.
+		//5.0.0.0	SL	2016-09-07	V2 to V5 Upgrade
+		//5.0.0.1	SL	2016-09-07	V3 to V5 Upgrade
+		//5.0.0.2	SL	2016-09-09	V4 to V5 Upgrade
+		//5.0.0.3	SL	2016-09-14	Added TRH107 (Uniface9701)
+		//5.0.0.4	SL	2016-09-22	IF NO DISOUNT ALREADY ON THE LINE, CLEAR PARAM FOR PRICE CALL
+		//5.0.0.5	SL	2016-10-20	Axminster- Don't change kit price on order discount.
+		//5.0.0.6	SL	2016-11-02	JoJo- E-Reciept, add extra tick box
+		//5.0.0.6	SL	2016-11-08	Axminster- SharePoint Issue 17, zero price after part search
+		//5.0.0.6	SL	2016-11-08	JoJo- Add City field to update customer SQL.
+		//5.0.0.7	SL	2016-11-16	JoJo- Fix STAR TSP100 issue with larger text size
+		//5.0.0.8	SL	2016-12-01	Axminster- fixes to issue 18 from SharePoint list. (Cancel on Cheque screen)
+		//5.0.0.9	SL	2017-01-09	JoJo- Fix Email Issue 2/ Contact-less Declines 3 (MBL card balance after redemsion)
+		//5.0.0.9	SL	2017-01-09	JoJo- Fix Contact-less Declines: 3 (-91, CARD TYPE NOT ACCEPTED)
+		//5.0.0.10	SL	2017-03-22	Axminster-	SharePoint ISSUE 22: manual credit card return
+		//5.0.0.10	SL	2017-03-22	Axminster-	SharePoint ISSUE 23: serial number part in kit
+		//5.0.0.11	SL	2017-03-27	JoJo-		Store Card PAN/force email address
+		//5.0.0.12	SL	2017-04-04	Axminster-	SharePoint	ISSUE 21: WIPE CUSTREF AND KEEP CURRENT
+		//5.0.0.13	SL	2017-06-27	Axminster-	SharePoint	ISSUES 36, 37, 41, 47
+		//5.0.0.14	SL	2017-07-04	JoJo-		EPOS change for receipt printing
+		//5.0.0.15	SL	2017-07-17	Bruar-		New Customer select screens
+		//5.0.0.16	SL	2017-07-28	General-	Post QA bug fixes
 
 		public const int DIGIPOS_DRAWER_CMD = 0x48F;
 
@@ -93,6 +102,10 @@ namespace epos {
 		private static bool startupdebug = true;
 		private static string tmpStrPostcode = "";
 		private static string tmpEmailAddress = "";
+		//2017-07-17 SL - 2.9.7.17 >>
+		private string tmpAddress = "";
+		private string tmpCity = "";
+		//2017-07-17 SL - 2.9.7.17 ^^
 		private static Boolean forcecatchcustomer = false;
 		private static string VERIFONEINDENT = "     ";
 		private static int MAXRECEIPTWIDTH = 41;
@@ -170,6 +183,9 @@ namespace epos {
 		private kitlist kitpartlist = new kitlist();
 
 		private flightlist airportflightlist = new flightlist();
+
+		//2017-07-17 SL - 2.9.7.17 >>
+		private addresslist PAFaddressList = new addresslist();
 
 		private Sound snd;
 		private static object lockit;
@@ -408,6 +424,7 @@ namespace epos {
 		{
 			try
 			{
+				Thread.Sleep(999);
 				if (Directory.Exists(tracedirectory))
 				{
 					// create stream if new receipt
@@ -640,6 +657,9 @@ namespace epos {
 		private bool allowdepositfullamount = false;
 
 		private int sequenceoption;
+		//2.9.7.17 SL 2017-07-17 >>
+		private int customercaptureoption = 0;
+		//2.9.7.17 SL 2017-07-17 ^^
 		private int changeoption;
 		private int refundoption;
 
@@ -943,7 +963,11 @@ namespace epos {
 		private int sql_timeout_local = 15;
 		private string sql_connstring_local = "";
 
+		//2.9.7.16 SL 2017-07-04 >>
+		private bool sql_forcepostcode = true;
 		private bool sql_forceemail = false;
+		private bool sql_forceaddress = false; //2017-01-17 SL JoJo want Address forced.
+		//2.9.7.16 SL 2017-07-04 ^^
 		private string weightscaleprefix = "";
 
 		//private decimal m_exactamount = 0.0m;
@@ -1000,6 +1024,7 @@ namespace epos {
 			deleteoldfiles();
 
 			elucid = new elucidxml(tracedirectory);
+
 			if (sql_server.Length > 0 && sql_database.Length > 0)
 			{
 				connstring = "Server=" + sql_server + ";Database=" + sql_database;
@@ -3013,6 +3038,12 @@ namespace epos {
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("sequence", "option", "", dat, 200, inifile);
 			sequenceoption = Convert.ToInt32(dat.ToString());
+
+			//2.9.7.17	SL	2017-07-17 >>
+			dat = new StringBuilder(200);
+			erc = GetPrivateProfileString("sequence", "customercaptureoption", "0", dat, 200, inifile);
+			customercaptureoption = Convert.ToInt32(dat.ToString());
+			//2.9.7.17	SL	2017-07-17 ^^
 
 			dat = new StringBuilder(200);
 			erc = GetPrivateProfileString("discount","option","1",dat,200,inifile);
@@ -7461,6 +7492,15 @@ namespace epos {
 					case 99:		// TEST state
 						processstate_99(eventtype, eventname, eventtag, eventdata);
 						break;
+					//2.9.7.17 SL 2017-07-17 >>
+					case 100:		// new search
+						processstate_100(eventtype, eventname, eventtag, eventdata);
+						break;
+					case 101:		// new search, results
+						processstate_101(eventtype, eventname, eventtag, eventdata);
+						break;
+					//2.9.7.17 SL 2017-07-17 ^^
+
 				}
 			}
 		}
@@ -10840,7 +10880,7 @@ namespace epos {
 
 							currentorder.lns[idx].BaseTaxPrice = (checkPricePart.TaxValue / checkPricePart.Qty); // FOR ITEM
 							currentorder.lns[idx].LineTaxValue = (checkPricePart.TaxValue / checkPricePart.Qty) * currentorder.lns[idx].Qty; // PER LINE
-
+							
 							// LineValue, not including discount...
 							if (manualDiscFound)
 							{
@@ -10856,6 +10896,12 @@ namespace epos {
 							{
 								currentorder.lns[idx].LineValue = currentorder.lns[idx].LineTaxValue + currentorder.lns[idx].LineNetValue;
 								currentorder.lns[idx].Discount = (currentorder.lns[idx].CurrentUnitPrice * currentorder.lns[idx].Qty) - (currentorder.lns[idx].LineNetValue + currentorder.lns[idx].LineTaxValue);
+
+								// from other areas>>>
+								//checkPricePart.Discount = (currentorder.lns[idx].BaseUnitPrice * currentpart.Qty) - currentorder.lns[idx].LineValue;
+
+								//new code>>>
+								//currentorder.lns[idx].Discount = (currentorder.lns[idx].BaseUnitPrice * currentpart.Qty) - currentorder.lns[idx].LineValue;
 							}	
 							currentorder.HeadDiscPercent = checkPricePart.HeadDiscRequired;
 							manualDiscFound = false;
@@ -12504,6 +12550,242 @@ namespace epos {
 				changetext("L_HDG7", ex.Message);
 			}
 		}
+		//2017-07-17 SL - 2.9.7.17 >>
+		private int afd_lookup_list(string postcode_receive, string house, ref addresslist PAFaddressList)
+		{
+			int result = -1;
+			int idx;
+			try
+			{
+				string AfdSQL = "select Postcode, [Address Line] as addr, Postkey from AddressFastFind('" + postcode_receive + "')";
+				string connStr = "DSN=" + PafDSN;// +";UID=" + PafUser;
+
+				if (PafUser != "")
+					connStr += ";UID=" + PafUser;
+
+				if (PafPWD != "")
+					connStr += ";PWD=" + PafPWD;
+#if PRINT_TO_FILE
+				ydebug("ConnectonString: " + connStr);
+#else
+				zdebug("ConnectonString: " + connStr);
+#endif
+				System.Data.Odbc.OdbcConnection dc = new System.Data.Odbc.OdbcConnection(connStr);
+				dc.Open();
+
+				System.Data.Odbc.OdbcDataAdapter da2 = new System.Data.Odbc.OdbcDataAdapter(AfdSQL, dc);
+				System.Data.DataSet ds2 = new DataSet();
+
+				int addIdx = -1;
+				int res2 = da2.Fill(ds2);
+				if (res2 > 0)
+				{
+					try
+					{
+						if (PAFaddressList == null)
+							PAFaddressList = new addresslist();
+						for (idx = 0; idx < ds2.Tables[0].Rows.Count; idx++)
+						{
+							try
+							{
+								bool addAddr = true;
+								string tmp_addr = "";
+								string tmp_addr_line = ds2.Tables[0].Rows[idx]["addr"].ToString();
+								tmp_addr = extractAddress(tmp_addr_line);
+								string tmp_city = extractCity(tmp_addr_line);
+								if (house.Length > 0)
+								{
+									for (int idy = 0; idy < house.Length; idy++)
+									{
+										if (house[idy] != tmp_addr[idy])
+											addAddr = false;
+									}
+								}
+								if (addAddr)
+								{
+									addIdx++;
+									PAFaddressList.lns[addIdx].Address = tmp_addr;
+									PAFaddressList.lns[addIdx].City = tmp_city;
+									PAFaddressList.lns[addIdx].Postcode = ds2.Tables[0].Rows[idx]["postcode"].ToString();
+									PAFaddressList.NumLines++;
+								}
+							}
+							catch
+							{
+								PAFaddressList.lns[idx].Postcode = "";
+								PAFaddressList.lns[idx].Address = "";
+							}
+						}
+					}
+					catch
+					{
+					}
+					result = PAFaddressList.NumLines;
+				}
+
+			}
+			catch (Exception ex)
+			{
+				ydebug("afd_lookup exception: " + ex.Message);
+				result = -3;
+			}
+
+			return result;
+		}
+		private string extractAddress(string addressin)
+		{
+			string result = "";
+			string address_edit = "";
+			int space_number = 0;
+			int char_number = 0;
+			int idx;
+			try
+			{
+				address_edit = addressin;
+
+				for (idx = 0; idx < address_edit.Length - 1; idx++)
+				{
+					if (address_edit[idx] == ' ')
+						space_number++;
+					else
+						char_number++;
+					if (space_number > 1 && char_number > 0 && address_edit[idx] != ' ')
+					{
+						result = address_edit.Remove(0, idx);
+						break;
+					}
+				}
+				for (idx = result.Length - 1; idx > 0; idx--)
+				{
+					// is an upper, so city/town
+					if ((result[idx] >= 'A' && result[idx] <= 'Z') || result[idx] == ' ')
+					{
+						// go onto next
+					}
+					else
+					{
+						break;
+					}
+				}
+				result = result.Substring(0, idx);
+
+			}
+			catch
+			{
+				result = "";
+			}
+
+			return result;
+		}
+		private string extractHouse(string addressin)
+		{
+			string result = "";
+			string address_edit = "";
+			int space_number = 0;
+			int char_number = 0;
+			try
+			{
+				address_edit = addressin;
+
+				for (int idx = 0; idx < address_edit.Length - 1; idx++)
+				{
+					if (address_edit[idx] == ' ')
+						space_number++;
+					else
+						char_number++;
+					if (space_number > 1 && char_number > 0 && address_edit[idx] != ' ')
+					{
+						result = address_edit.Remove(0, idx);
+						break;
+					}
+				}
+			}
+			catch
+			{
+				result = "";
+			}
+			return result;
+		}
+		private string extractCity(string addressin)
+		{
+			string result = "";
+			string address_edit = "";
+			int idx = 0;
+			try
+			{
+				address_edit = addressin;
+
+				for (idx = address_edit.Length - 1; idx > 0; idx--)
+				{
+					// is an upper, so city/town
+					if ((address_edit[idx] >= 'A' && address_edit[idx] <= 'Z') || address_edit[idx] == ' ')
+					{
+						// go onto next
+					}
+					else
+					{
+						break;
+					}
+				}
+				result = address_edit.Substring(idx + 2, address_edit.Length - (idx + 2));
+			}
+			catch
+			{
+				result = "";
+			}
+			return result;
+		}
+		private custsearch FilterHouse(string house, custsearch searchin)
+		{
+			int custIndx = -1;
+			string tmp_addr = "";
+			bool addAddr = true;
+			custsearch searchresult = new custsearch();
+
+			searchresult.NumLines = 0;
+			for (int idx = 0; idx < searchin.NumLines; idx++)
+			{
+				addAddr = true;
+				tmp_addr = searchin.lns[idx].Address;
+
+				if (house.Length > 0)
+				{
+					for (int idy = 0; idy < house.Length; idy++)
+					{
+						if (house[idy] != tmp_addr[idy])
+							addAddr = false;
+					}
+				}
+				if (addAddr)
+				{
+					custIndx++;
+
+					searchresult.lns[custIndx].Customer = searchin.lns[idx].Customer;
+
+					searchresult.lns[custIndx].PostCode = searchin.lns[idx].PostCode;
+					searchresult.lns[custIndx].Address = searchin.lns[idx].Address;
+					searchresult.lns[custIndx].City = searchin.lns[idx].City;
+					searchresult.lns[custIndx].County = searchin.lns[idx].County;
+					searchresult.lns[custIndx].CountryCode = searchin.lns[idx].CountryCode;
+
+					searchresult.lns[custIndx].Title = searchin.lns[idx].Title;
+					searchresult.lns[custIndx].Surname = searchin.lns[idx].Surname;
+					searchresult.lns[custIndx].Initials = searchin.lns[idx].Initials;
+					searchresult.lns[custIndx].EmailAddress = searchin.lns[idx].EmailAddress;
+					searchresult.lns[custIndx].Source = id.SourceCode;
+
+					searchresult.lns[custIndx].NoEmail = searchin.lns[idx].NoEmail;
+					searchresult.lns[custIndx].NoMail = searchin.lns[idx].NoMail;
+					searchresult.lns[custIndx].NoPhone = searchin.lns[idx].NoPhone;
+					searchresult.lns[custIndx].NoPromote = searchin.lns[idx].NoPromote;
+
+					searchresult.NumLines++;
+				}
+			}
+			return searchresult;
+		}
+		//2017-07-17 SL - 2.9.7.17 ^^
+
 		#endregion // general utilities
 
 		#endregion // utilities
@@ -12944,7 +13226,8 @@ namespace epos {
 						}
 						//*** E00675
 
-						paintdisplay((currentpart.Description + "                ").Substring(0, 20) + "\r\n" + rpad(currentpart.Price.ToString("F02"), 20));
+						//paintdisplay((currentpart.Description + "                ").Substring(0, 20) + "\r\n" + rpad(currentpart.Price.ToString("F02"), 20));
+						paintdisplay((currentpart.Description + "                   ").Substring(0, 20) + "\r\n" + rpad(currentpart.Price.ToString("F02"), 20));
 
 						if ((currentpart.Script != "") || (currentpart.Notes != ""))
 						{
@@ -14978,7 +15261,7 @@ namespace epos {
 							outstanding = currentorder.TotVal - currentorder.DiscountVal - currentorder.CashVal - currentorder.ChequeVal - currentorder.TotCardVal - currentorder.VoucherVal - currentorder.AccountVal - currentorder.DepCashVal - currentorder.DepChequeVal - currentorder.DarVouch1Val - currentorder.DarVouch2Val;
 							this.m_item_val = outstanding.ToString("F02");
 
-							newstate(75);		// New state for quantity and SALE_TYPE options
+							newstate(75);// New state for quantity and SALE_TYPE options
 						}
 						return;
 					}
@@ -16275,7 +16558,6 @@ namespace epos {
 									// 2015-10-01, change added to include manual discount after a manual price change.
 									currentorder.lns[idx].DiscPercent = discperc;
 								}
-
 							}
 							else
 							{
@@ -19668,6 +19950,13 @@ namespace epos {
 								changetext("L_HDG3",st1[5]);
 								return;
 							}
+
+							//2.9.7.18 SL 2017-07-28 >>
+							merchantVoucherMessage = "";
+							cardholderVoucherMessage = "";
+							mPrintVeriFoneVoucherType = 0;
+							//2.9.7.18 SL 2017-07-28 ^^
+
 							currentorder = new orderdata();
 							currentcust = new custdata();
 							vouchsearchres.NumLines = 0;							
@@ -19708,6 +19997,12 @@ namespace epos {
 								changetext("L_HDG3",st1[5]);
 								return;
 							}
+							//2.9.7.18 SL 2017-07-28 >>
+							merchantVoucherMessage = "";
+							cardholderVoucherMessage = "";
+							mPrintVeriFoneVoucherType = 0;
+							//2.9.7.18 SL 2017-07-28 ^^
+
 							currentorder = new orderdata();
 							currentcust = new custdata();
 							vouchsearchres.NumLines = 0; 
@@ -19817,11 +20112,21 @@ namespace epos {
 							} else {
 								cashplusvoucher = currentorder.CashVal;
 							}
-							if ((outstanding + cashplusvoucher) < 0) { 	// overpayment but cant give cash change
-								changetext("L_HDG6",st1[4]);
+							// AXMINSTER Issue 22 -  2017-02-22 - SJL >>
+							//if ((outstanding + cashplusvoucher) < 0)
+							//{ 	// overpayment but cant give cash change
+							//	changetext("L_HDG6",st1[4]);
+							//	hdg6waserror = true; beep();
+							//	return;
+							//}
+							if ((currentorder.TotVal > 0 && outstanding + cashplusvoucher < 0) || (currentorder.TotVal < 0 && outstanding + cashplusvoucher > 0))
+							{ 	// overpayment but cant give cash change
+								changetext("L_HDG6", st1[4]);
 								hdg6waserror = true; beep();
 								return;
 							}
+							// AXMINSTER Issue 22 -  2017-02-22 - SJL ^^
+
 						}
 
 						currentorder.CardVal = cardinput;
@@ -19840,7 +20145,11 @@ namespace epos {
 						changetext("L_HDG8",st1[32] + " " + "$PND" + currentorder.TotCardVal.ToString("F02"));
 						currentorder.ManualCC = true;
 
-						if (outstanding > 0) {
+						//AXMINSTER ISSUE 22	2017-03-22	SJL >>
+						//if (outstanding > 0)
+						if ((currentorder.TotVal > 0 && outstanding > 0) || currentorder.TotVal < 0 && outstanding < 0)
+						//AXMINSTER ISSUE 22	2017-03-22	SJL ^^
+						{
 							changetext("L_PR1",outstanding.ToString("F02"));
 							changetext("L_HDG3",st1[16]);
 							changetext("EB1","");
@@ -19849,25 +20158,9 @@ namespace epos {
 							enablecontrol("BF2",false);
 							enablecontrol("BF4",true);
 						}
-						else {
-							//						outstanding = -outstanding;
-							//						changetext("L_PR1",outstanding.ToString("F02"));
-							//						changetext("L_HDG3",st1[5]);
-							//						changetext("LF4","");
-							//						changetext("EB1","");
-							//						enablecontrol("BF1",true);
-							//						if (sequenceoption == 2)
-							//						{
-							//							enablecontrol("BF2",true);
-							//						}
-							//						if (sequenceoption == 1)
-							//						{
-							//							enablecontrol("BF2",false);
-							//						}
-
-							//						enablecontrol("BF4",false);
+						else
+						{
 							processstate_15(stateevents.functionkey,eventname,eventtag,"DONE");
-
 							return;
 						}
 
@@ -19955,10 +20248,21 @@ namespace epos {
 				}
 
 				currentorder.CardVal = cardinput;
-
+				//2017-03-27 - SJL - CARD PAN >>
+				for (idx = 0; idx < 10; idx++)
+				{
+					if (currentorder.cds[idx].CardPAN.Length == 0 || currentorder.cds[idx].CardPAN == "entering")
+					{
+						currentorder.cds[idx].CardPAN = "entering";
+						currentorder.cds[idx].CardAmount = cardinput;
+						break;
+					}
+				}
+				//2017-03-27 - SJL - CARD PAN ^^
 
 				if (currentorder.OrderNumber == "")
-					elucid.genord(id,currentorder);
+					elucid.genord(id, currentorder);
+
 				changetext("L_HDG7",st1[29]);
 				enablecontrol("BF8",false);
 				//2016-09-09 SL - 5.002 - V4 to V5 Upgrade >>
@@ -20000,6 +20304,9 @@ namespace epos {
 							break;
 						case -99:
 							changetext("L_HDG7", "-99 " + st1[9]);
+							break;
+						case -91:
+							changetext("L_HDG7", "-91 " + "CARD TYPE NOT ACCEPTED"); //2017-01-12 SL, Contacless issue.
 							break;
 						case -85:
 							changetext("L_HDG7", "-85 " + st1[72]); //User Not logged on
@@ -20138,11 +20445,20 @@ namespace epos {
 							m_prev_state = 16;
 							m_calling_state = 16;
 
+							newstate(97);	// get customer
+
+							//newstate(97);	// get customer
+							// 2017-07-17 - SL
+
 							//clear97
 							changetext("EC_COUNTY", "");
 							changetext("EC_INITIALS", "");
 							changetext("EC_SURNAME", "");
 							changetext("EC_ADDRESS", "");
+
+							// 2016-11-08 SL - CLEAR CITY FIELD
+							changetext("EC_CITY", "");
+
 							changetext("EC_POST_CODE", "");
 							changetext("EC_EMAIL_ADDRESS", "");
 
@@ -20151,14 +20467,48 @@ namespace epos {
 							changechecked("XB3", "0");
 							changechecked("XB4", "0");
 							changechecked("XB5", "0");
-							m_calling_state = 16;
-							newstate(97);	// get customer
+							// 2016-11-08 SL - E-Reciept
+							changechecked("XB6", "0");
 							return;
-	//2016-11-08 SL - JoJo, Customer Capture fix >>
+							//2016-11-08 SL - JoJo, Customer Capture fix >>
 						}
-						else {
+						else
+						{
+							//2016-12-02 SL - JoJo, Customer Capture fix- Issue 12 >>
+
+							// Clear items as they can show part search...
+							lb1[2].Items.Clear();
+							m_prev_state = 16;
 							m_calling_state = 16;
-							newstate(98);	// get customer
+
+							newstate(97);	// get customer
+
+							//newstate(97);	// get customer
+							// 2017-07-17 - SL
+
+							changetext("EC_COUNTY", currentcust.Customer);
+							changetext("EC_INITIALS", currentcust.Initials);
+							changetext("EC_SURNAME", currentcust.Surname);
+							changetext("EC_ADDRESS", currentcust.Address);
+
+							// 2016-11-08 SL - CLEAR CITY FIELD
+							changetext("EC_CITY", currentcust.City);
+
+							changetext("EC_POST_CODE", currentcust.PostCode);
+							changetext("EC_EMAIL_ADDRESS", currentcust.EmailAddress);
+
+							changechecked("XB1", currentcust.NoMail);
+							changechecked("XB2", currentcust.NoPromote);
+							changechecked("XB3", currentcust.NoEmail);
+							changechecked("XB4", currentcust.NoPhone);
+							changechecked("XB5", currentcust.NoSMS);
+							// 2016-11-08 SL - E-Reciept
+							if (currentcust.Medical)
+								changechecked("XB6", "1");
+							else
+								changechecked("XB6", "0");
+
+							//2016-12-02 SL - JoJo, Customer Capture fix- Issue 12 ^^
 							return;
 						}
 	//2016-11-08 SL - JoJo, Customer Capture fix ^^						
@@ -20172,7 +20522,37 @@ namespace epos {
 
 					lb1[6].Items.Clear();
 					m_calling_state = 16;
-					newstate(17);
+
+					// 2017-07-17 - SL
+					if (customercaptureoption == 2)
+					{
+						m_calling_state = 16;
+						newstate(100);
+						changetext("EC_POST_CODE", "");
+						changetext("EC_COMPANY_NAME", "");//HOUSE
+						changetext("EC_ADDRESS", "");
+						changetext("EC_CITY", "");
+						changetext("EC_COUNTY", "");
+						changecomb("EC_COUNTRY", id.DefCountry);
+
+						changecomb2("EC_TITLE", "");
+						changetext("EC_TITLE", defaulttitle);
+						changetext("EC_SURNAME", "");
+						changetext("EC_INITIALS", "");
+						changetext("EC_EMAIL_ADDRESS", "");
+
+						changecomb("EC_SOURCE_CODE", id.SourceCode);
+
+						changechecked("XB1", "0");
+						changechecked("XB2", "0");
+						changechecked("XB3", "0");
+						changechecked("XB4", "0");
+					}
+					else
+						newstate(17);
+
+					//newstate(17);	// get customer
+					// 2017-07-17 - SL
 					return;
 				}
 				if (eventdata == "RETURN")
@@ -21701,23 +22081,27 @@ namespace epos {
 				}
 				if (eventdata == "IMAGE") // image
 				{
+					zdebug("IMAGE");
 					if (currentpart.PartNumber != "")
 					{
+						zdebug("Part: " + currentpart.PartNumber);
 						elucid.validatepart(id, currentpart, currentcust, false);
 						imagefile = currentpart.PartNumber + ".jpg";
+						zdebug("imagefile: " + imagefile);
 						bool imageFound = loadimage("IMAGE1", imagefile);
-						//if ((imageFound) || (currentpart.FullDescription == ""))
-						//{
-						//	// sjl, 16/09/2008: new state to show only description.
-						//	newstate(32);
-						//	this.loadfulldesc("L_FULLDESC", currentpart.FullDescription);
-						//	loadimage("IMAGE1", imagefile);
-						//}
-						//else
-						//{
-						//	newstate(74);
-						//	this.loadfulldesc("L_FULLDESC2", currentpart.FullDescription);
-						//}
+						if ((imageFound))// || (currentpart.FullDescription == ""))
+						{
+							zdebug("imageFound" + imageFound.ToString());
+							// sjl, 16/09/2008: new state to show only description.
+							newstate(32);
+							//this.loadfulldesc("L_FULLDESC", currentpart.FullDescription);
+							loadimage("IMAGE1", imagefile);
+						}
+						else if (currentpart.FullDescription.Length > 0)
+						{
+							newstate(74);
+							this.loadfulldesc("L_FULLDESC2", currentpart.FullDescription);
+						}
 					}
 				}
 				if (eventdata == "WEBPAGE") // image
@@ -22759,12 +23143,12 @@ namespace epos {
 
 
 						//2016-08-10 SL - USE DEFAULT SOURCE AS THE SOURCE IS NOT CHOSEN HERE >>
-						//if (forcecustomersource)
+						if (forcecustomersource)
 						{
 							m_prev_state = 22;
 							newstate(51);
 							changecomb2("EC11", id.SourceCode);
-//V4
+							//V4
 							return;
 						}
 						//if (( (currentcust.VouchersHeld.Count > 0) || (currentcust.PointsValue > 0.00M)) && showvoucherinfo)
@@ -24240,6 +24624,14 @@ namespace epos {
 							case -99:
 								changetext("L_HDG6",st1[9]);
 								break;
+							//2017-01-12 SL
+							case -91:
+								changetext("L_HDG7", "-91 " + "CARD TYPE NOT ACCEPTED"); //2017-01-12 SL, Contact-less issue.
+								break;
+							case -85:
+								changetext("L_HDG7", "-85 " + st1[72]); //User Not logged on
+								break;
+							//2017-01-12 SL
 							case -1:
 								changetext("L_HDG6",st1[36]);
 								break;
@@ -24841,20 +25233,35 @@ namespace epos {
 					
 					if (PafDSN == "")
 					{
-						custdata postcodecust = new custdata();
-						int postcode_res = elucid.postcodelookup(id,postcode,postcodecust);
-						if (postcode_res == 0) {
-							changetext("EC_POST_CODE",postcodecust.PostCode);
-							/**/
-							changetext("EC_ADDRESS",postcodecust.Address.Replace("\r","\r\n"));
-							changetext("EC_CITY",postcodecust.City.Replace("\r","\r\n"));
-							changetext("EC_COUNTY",postcodecust.County);
-							focuscontrol("EC_TITLE");
-						}
-						else
+						try
 						{
-							changetext("L_HDG6","Postcode Not Found");
-							hdg6waserror = true; beep();
+							//MessageBox.Show("1");
+							custdata postcodecust = new custdata();
+							//MessageBox.Show("2");
+							int postcode_res = elucid.postcodelookup(id, postcode, postcodecust);							
+							if (postcode_res == 0)
+							{
+								changetext("EC_POST_CODE", postcodecust.PostCode);
+								/**/
+								changetext("EC_ADDRESS", postcodecust.Address.Replace("\r", "\r\n"));
+								changetext("EC_CITY", postcodecust.City.Replace("\r", "\r\n"));
+								changetext("EC_COUNTY", postcodecust.County);
+								focuscontrol("EC_TITLE");
+							}
+							else if (postcode_res == -999)
+							{
+							
+							}
+							else
+							{
+								MessageBox.Show(id.ErrorMessage);
+								changetext("L_HDG6", "Postcode Not Found");
+								hdg6waserror = true; beep();
+							}
+						}
+						catch (Exception ex)
+						{
+							MessageBox.Show(ex.Message);
 						}
 					}
 					else
@@ -27244,7 +27651,6 @@ namespace epos {
 					txt = eventdata;
 					try
 					{
-						/// START HEREHERE
 						if (exclusivediscounts)
 						{
 							txt = txt.Replace("%", "");
@@ -27301,12 +27707,15 @@ namespace epos {
 							}
 							recalcordertotal(id, currentorder);
 
+							//2017-06-27 SL - 5.013 - EPoS V92 SharePoint Issue 36. >>
+							RedrawDiscounts(0);
+							//2017-06-27 SL - 5.013 - EPoS V92 SharePoint Issue 36. ^^
+
 							m_item_val = currentorder.LineVal.ToString("F02");
 							m_tot_val = currentorder.TotVal.ToString("F02");
 							newstate(10);
 							return;
 						}
-						/// END HEREHERE
 						// sjl: no cascading on percent?
 						if ((txt.EndsWith("%")) || (percentagediscount == 1) || (eventname != "NOCASCADE"))
 						{
@@ -29794,6 +30203,18 @@ namespace epos {
 					int erc = 0;	// set to zero for new return type
 
 					if (erc == 0) {
+						//2017-04-04	Axminster-	SharePoint	ISSUE 21: WIPE CUSTREF AND KEEP CURRENT >>
+						custdata savedcust = new custdata();
+						if (currentcust != null)
+						{
+							if (currentcust.Customer != "" && currentcust.Customer != id.CashCustomer)
+							{
+								savedcust = new custdata();
+								savedcust = currentcust;
+							}
+						}
+						//2017-04-04	Axminster-	SharePoint	ISSUE 21: WIPE CUSTREF AND KEEP CURRENT ^^
+
 						currentcust = new custdata();
 						currentcust.CustRef = eventdata;
 						retord = new orderdata(orderdata.OrderType.Return);
@@ -29801,6 +30222,17 @@ namespace epos {
 						lb1[2].Items.Clear();
 						lb1[7].Items.Clear();
 						erc = elucid.getorderfromreceipt(id,currentcust.CustRef,retcust,retord);
+						//2017-04-04	Axminster-	SharePoint	ISSUE 21: WIPE CUSTREF AND KEEP CURRENT >>
+						if (erc != 0)
+						{
+							currentcust.CustRef = "";
+							if (savedcust.Customer != "" && savedcust.Customer != id.CashCustomer)
+							{
+								//currentcust.CustRef = savedcust.Customer;
+								currentcust = savedcust;
+							}
+						}
+						//2017-04-04	Axminster-	SharePoint	ISSUE 21: WIPE CUSTREF AND KEEP CURRENT ^^
 					}
 					if (erc == 0) {
 						// MessageBox.Show(retcust.Customer);
@@ -31337,7 +31769,7 @@ namespace epos {
 				}
 
 				if (eventdata == "CHANGE") {
-					//2016-09-01 SL - REMOVE FOR AXMINSTER SHAREPOINT EPOS ISSUE 11 >>
+					//2016-09-01 SL - REMOVE FOR AXMINSTER SharePoint EPOS ISSUE 11 >>
 					//idx = lb1[2].SelectedIndex;
 					//if (idx == -1)
 					//{
@@ -31380,7 +31812,7 @@ namespace epos {
 
 					//    }
 					//}
-					//2016-09-01 SL - REMOVE FOR AXMINSTER SHAREPOINT EPOS ISSUE 11 ^^
+					//2016-09-01 SL - REMOVE FOR AXMINSTER SharePoint EPOS ISSUE 11 ^^
 
 					lb1[2].Refresh();
 					tb1[0].Enabled = true;
@@ -31717,6 +32149,12 @@ namespace epos {
 							else
 								vatRate = 20.0m;
 
+							//2017-06-29 SL SharePoint Issue 41 >>
+							// IF NO PRICE - CHECK THE VAT RATE.
+							if (currentpart.ElucidPrice == 0.0m)
+								vatRate = currentpart.TaxRate;
+							//2017-06-29 SL SharePoint Issue 41 >>
+
 							decimal tmpElucidPrice = 0.0m;
 							decimal tmpVatRate = decimal.Round(100 + (vatRate), 0);
 							tmpElucidPrice = (newprice / tmpVatRate) * 100;
@@ -31797,7 +32235,8 @@ namespace epos {
 						m_tot_val = currentorder.TotVal.ToString("F02");
 						lb1[0].SelectedIndex = idx * LinesPerSordLine;						
 						
-						paintdisplay((currentpart.Description + "               ").Substring(0,20) +"\r\n" + rpad(currentpart.Price.ToString("F02"),20));
+						//paintdisplay((currentpart.Description + "               ").Substring(0,20) +"\r\n" + rpad(currentpart.Price.ToString("F02"),20));
+						paintdisplay((currentpart.Description + "                   ").Substring(0, 20) + "\r\n" + rpad(currentpart.Price.ToString("F02"), 20));
 					}
 					catch (Exception) {
 						changetext("L_HDG6",st1[13]);
@@ -34548,7 +34987,7 @@ namespace epos {
 						eventdata = gettext("EB1");
 						//enablecontrol("EB1", false);
 						processstate_78(stateevents.textboxcret, eventname, eventtag, eventdata);
-						focuscontrol("EB1");
+						focuscontrol("EB1"); //2017-01-12 SL
 						return;
 					}
 					catch { }
@@ -40109,6 +40548,657 @@ namespace epos {
 			return;
 		}
 		#endregion // 99
+		#region state100 HoB Customer Capture - Search
+		private void processstate_100(stateevents eventtype, string eventname, int eventtag, string eventdata)
+		{
+			int idx, erc;
+
+			string txt;
+			string postcode;
+			string house = "";
+			string postcode_out = "";
+			string address_out = "";
+			string town_out = "";
+
+			try
+			{
+				if (eventtype == stateevents.textboxcret)
+				{
+					if (eventdata == "")
+						return;
+
+					processstate_100(stateevents.functionkey, eventname, eventtag, "SEARCH");
+				}
+				if (eventtype == stateevents.functionkey)
+				{
+					if (eventdata == "BACK" || eventdata == "ESC")
+					{
+						blankcurrenctcustomer();
+
+						if (m_calling_state == 16)
+							newstate(16);
+						else
+						{
+							if (currentorder.NumLines == 0)
+								newstate(2);
+							else
+								newstate(3);
+						}
+						return;
+					}
+					if (eventdata == "SEARCH")
+					{
+						searchpopup(true);
+						try
+						{
+							postcode = gettext("EC_POST_CODE");
+							postcode = formatpostcode(postcode, true);
+							house = gettext("EC_COMPANY_NAME");
+
+							// look in AFD for all address with that postcode...
+							if (postcode.Length > 5)
+							{
+								int address_len = 26;
+								int postcode_len = 8;
+								int customer_len = 8;//26+1+8+1+8=46
+
+								changetext("L_HDG6", "Address Lookup");
+
+								if (lb1[2].Items.Count > 0)
+								{
+									lb1[2].Items.Clear();
+									lb1[2].Refresh();
+								}
+
+								currentcust = new custdata(); // no customer info needed
+								gotcustomer = false;
+								currentcust.Customer = "";
+								currentcust.PostCode = postcode;
+								currentcust.Order = "";
+
+								idx = 0;
+								PAFaddressList.NumLines = 0;
+								erc = afd_lookup(postcode, ref postcode_out, ref address_out, ref town_out);
+								if (erc == 0)
+								{
+									tmpStrPostcode = postcode_out;
+									tmpAddress = address_out;
+									tmpCity = town_out;
+									txt = pad(address_out, address_len) + " " + pad(postcode_out, postcode_len) + " " + pad(" ", customer_len) + "___R";
+									lb1[2].Items.Add(txt);
+									lb1[2].Items.Add(" ");
+								}
+								else if (erc == -2)
+								{
+
+								}
+								else
+								{
+									tmpStrPostcode = postcode;
+									txt = pad(tmpStrPostcode, 46) + "___R";
+									lb1[2].Items.Add(txt);
+									lb1[2].Items.Add(" ");
+								}
+
+								idx = 0;
+								custsearchres.NumLines = 0;
+								erc = elucid.searchcust(id, currentcust, custsearchres);
+								if (erc == 0)
+								{
+									if (house.Length > 0 && custsearchres.NumLines > 0)
+									{
+										// only show correct houses in search results
+										custsearchres = FilterHouse(house, custsearchres);
+									}
+
+									for (idx = 0; idx < custsearchres.NumLines; idx++)
+									{
+										txt = pad(custsearchres.lns[idx].Address, address_len) + " " + pad(custsearchres.lns[idx].PostCode, postcode_len) + " " + pad(custsearchres.lns[idx].Customer, customer_len) + "___*";
+										lb1[2].Items.Add(txt);
+										txt = pad(custsearchres.lns[idx].Surname, address_len) + " " + pad(custsearchres.lns[idx].Initials, postcode_len) + " " + pad(custsearchres.lns[idx].Title, customer_len) + "___*";
+										lb1[2].Items.Add(txt);
+									}
+								}
+								idx = 0;
+								PAFaddressList.NumLines = 0;
+								erc = afd_lookup_list(postcode, house, ref PAFaddressList);
+								if (erc > 0)
+								{
+									// IF THERE ARE NO ELUCID CUSTOMERS, MORE SPACES CAN BE USED FOR ADDRESS
+									if (custsearchres.NumLines < 1)
+									{
+										address_len = 26 + 7;
+										postcode_len = 8;
+										customer_len = 8 - 7;
+									}
+									for (idx = 0; idx < PAFaddressList.NumLines; idx++)
+									{
+										txt = pad(PAFaddressList.lns[idx].Address, address_len) + " " + pad(PAFaddressList.lns[idx].Postcode, postcode_len) + " " + pad(" ", customer_len) + "___#";
+										lb1[2].Items.Add(txt);
+										lb1[2].Items.Add(" ");
+									}
+								}
+								else if (erc == -2)
+								{
+									// POSTCODE contains error
+									changetext("L_HDG6", postcode_out);
+									changetext("EC_POST_CODE", "");
+									focuscontrol("EC_POST_CODE");
+								}
+								else
+								{
+									changetext("L_HDG6", postcode_out);
+								}
+								if (lb1[2].Items.Count > 0)
+								{
+									lb1[2].Refresh();
+									newstate(101);
+								}
+								else
+								{
+									changetext("L_HDG6", "No Results Found");
+									changetext("EC_POST_CODE", "");
+									focuscontrol("EC_POST_CODE");
+								}
+							}
+							else
+							{
+								changetext("L_HDG6", st1[20]);
+							}
+						}
+						catch
+						{
+							searchpopup(false);
+						}
+						finally
+						{
+							searchpopup(false);
+						}
+					}
+					if (eventdata == "SAVE")
+					{
+						// IF NEW CUSTOMER THAN NO CUSTOMER ID?
+						waitpopup(true);
+						lb1[2].Items.Clear();
+						custsearchres.NumLines = 0;
+						currentcust.PostCode = formatpostcode(gettext("EC_POST_CODE"), true);
+
+						string tmpHouse = gettext("EC_COMPANY_NAME");
+						tmpAddress = gettext("EC_ADDRESS");
+						if (tmpHouse.Length > 0 && tmpAddress.Length > 0)
+						{
+							//CHECK THAT FIRST CHARS DO NOT MATCH
+							idx = tmpAddress.Length;
+							if (tmpHouse.Length < tmpAddress.Length)
+								idx = tmpHouse.Length;
+
+							int idcheck = idx;
+							for (idx = idcheck; idx < idcheck; idx++)
+							{
+								if (tmpHouse[idx] == tmpAddress[idx])
+								{//
+								}
+							}
+							tmpAddress = tmpHouse + " " + gettext("EC_ADDRESS");
+						}
+						else
+							tmpAddress = gettext("EC_ADDRESS");
+
+						currentcust.Address = tmpAddress;
+						currentcust.City = gettext("EC_CITY");
+						currentcust.County = gettext("EC_COUNTY");
+						currentcust.CountryCode = gettext("EC_COUNTRY");
+
+						currentcust.Title = gettext("EC_TITLE"); ;
+						currentcust.Surname = gettext("EC_SURNAME");
+						currentcust.Initials = gettext("EC_INITIALS");
+						currentcust.EmailAddress = gettext("EC_EMAIL_ADDRESS");
+						currentcust.Source = gettext("EC_SOURCE_CODE");
+
+						currentcust.NoMail = getchecked("XB1") ? "1" : "0";
+						currentcust.NoPromote = getchecked("XB2") ? "1" : "0";
+						currentcust.NoEmail = getchecked("XB3") ? "1" : "0";
+						currentcust.NoPhone = getchecked("XB4") ? "1" : "0";
+
+						// CHECK DETAILS
+						if (currentcust.Surname == "")
+						{
+							changetext("L_HDG6", "Missing Surname");
+							beep();
+							return;
+						}
+						if (currentcust.PostCode == "" && sql_forcepostcode)
+						{
+							changetext("L_HDG6", "Missing Postcode");
+							beep();
+							return;
+						}
+						if (currentcust.EmailAddress == "" && (sql_forceemail || currentcust.Medical))
+						{
+							changetext("L_HDG6", "Missing Email");
+							beep();
+							return;
+						}
+						if (currentcust.Address == "" && sql_forceaddress)
+						{
+							changetext("L_HDG6", "Missing Address");
+							beep();
+						}
+						// which customer?
+						if (currentcust.Customer == "")
+						{
+							// new customer create
+							erc = elucid.addcustomer(id, currentcust);
+							if (erc != 0)
+							{
+								//ERROR
+								changetext("L_HDG6", id.ErrorMessage);
+								beep();
+								return;
+							}
+							else
+								gotcustomer = true;
+						}
+						else if (currentcust.Customer == id.CashCustomer)
+						{
+							//do nothing
+							changetext("L_HDG6", "Cash Customer Selected");
+							blankcurrenctcustomer();
+							beep();
+							return;
+						}
+						else
+						{
+							// update current customer
+							erc = elucid.updatecustomer(id, currentcust);
+							if (erc != 0)
+							{
+								//ERROR
+								changetext("L_HDG6", id.ErrorMessage);
+								blankcurrenctcustomer();
+								beep();
+								return;
+							}
+							else
+								gotcustomer = true;
+						}
+						waitpopup(false);
+
+						if (m_calling_state == 16)
+							newstate(16);
+						else
+						{
+							newstate(10);
+							enabletradeoption();
+						}
+					}
+					if (eventdata == "CLEAR")
+					{
+						blankcurrenctcustomer();
+						newstate(100);
+
+						changetext("EC_POST_CODE", "");
+						changetext("EC_COMPANY_NAME", "");//HOUSE
+						changetext("EC_ADDRESS", "");
+						changetext("EC_CITY", "");
+						changetext("EC_COUNTY", "");
+						changecomb("EC_COUNTRY", id.DefCountry);
+
+						changecomb2("EC_TITLE", "");
+						changetext("EC_TITLE", defaulttitle);
+						changetext("EC_SURNAME", "");
+						changetext("EC_INITIALS", "");
+						changetext("EC_EMAIL_ADDRESS", "");
+
+						changecomb("EC_SOURCE_CODE", id.SourceCode);
+
+						changechecked("XB1", "0");
+						changechecked("XB2", "0");
+						changechecked("XB3", "0");
+						changechecked("XB4", "0");
+						changechecked("XB5", "0");
+						changechecked("XB6", "0");
+					}
+				}
+				if (eventdata == "SKIP")
+				{
+					populatecashcustomer();
+					if (m_calling_state == 16)
+						newstate(16);
+					else
+						newstate(10);
+				}
+				#region TABS
+				if (eventdata == "TAB")
+				{
+					//int tmpInt = this.ActiveControl.TabIndex;
+					//for (int idy = 0; idy < 1; idy++)
+					//{
+					//    if (this.ActiveControl.TabIndex == idy)
+					//    {
+					//        this.Container.Components[].
+					//    }
+					//}
+					//return;
+					if (this.ActiveControl.Name == "EC_POST_CODE")
+					{
+						changetext("EC_POST_CODE", gettext("EC_POST_CODE").Trim());
+						focuscontrol("EC_COMPANY_NAME");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COMPANY_NAME")
+					{
+						changetext("EC_COMPANY_NAME", gettext("EC_COMPANY_NAME").Trim());
+						focuscontrol("EC_ADDRESS");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_ADDRESS")
+					{
+						focuscontrol("EC_CITY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_CITY")
+					{
+						changetext("EC_CITY", gettext("EC_CITY").Trim());
+						focuscontrol("EC_COUNTY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COUNTY")
+					{
+						changetext("EC_COUNTY", gettext("EC_COUNTY").Trim());
+						focuscontrol("EC_COUNTRY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COUNTRY")
+					{
+						changetext("EC_COUNTRY", gettext("EC_COUNTRY").Trim());
+						focuscontrol("EC_TITLE");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_TITLE")
+					{
+						focuscontrol("EC_SURNAME");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_SURNAME")
+					{
+						changetext("EC_SURNAME", gettext("EC_SURNAME").Trim());
+						focuscontrol("EC_INITIALS");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_INITIALS")
+					{
+						changetext("EC_INITIALS", gettext("EC_INITIALS").Trim());
+						focuscontrol("EC_EMAIL_ADDRESS");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_EMAIL_ADDRESS")
+					{
+						changetext("EC_EMAIL_ADDRESS", gettext("EC_EMAIL_ADDRESS").Trim());
+						focuscontrol("EC_SOURCE_CODE");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_SOURCE_CODE")
+					{
+						focuscontrol("XB1");
+						return;
+					}
+					if (this.ActiveControl.Name == "XB1")
+					{
+						focuscontrol("XB2");
+						return;
+					}
+					if (this.ActiveControl.Name == "XB2")
+					{
+						focuscontrol("XB3");
+						return;
+					}
+					if (this.ActiveControl.Name == "XB3")
+					{
+						focuscontrol("XB4");
+						return;
+					}
+					if (this.ActiveControl.Name == "XB4")
+					{
+						focuscontrol("XB1");
+						return;
+					}
+				}
+				if (eventdata == "BACKTAB")
+				{
+					if (this.ActiveControl.Name == "EC_POST_CODE")
+					{
+						focuscontrol("XB4");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COMPANY_NAME")
+					{
+						focuscontrol("EC_POST_CODE");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_ADDRESS")
+					{
+						focuscontrol("EC_COMPANY_NAME");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_CITY")
+					{
+						focuscontrol("EC_ADDRESS");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COUNTY")
+					{
+						focuscontrol("EC_CITY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_COUNTRY")
+					{
+						focuscontrol("EC_COUNTY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_TITLE")
+					{
+						focuscontrol("EC_COUNTRY");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_SURNAME")
+					{
+						focuscontrol("EC_TITLE");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_INITIALS")
+					{
+						focuscontrol("EC_SURNAME");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_EMAIL_ADDRESS")
+					{
+						focuscontrol("EC_INITIALS");
+						return;
+					}
+					if (this.ActiveControl.Name == "EC_SOURCE_CODE")
+					{
+						focuscontrol("EC_EMAIL_ADDRESS");
+						return;
+					}
+					if (this.ActiveControl.Name == "XB1")
+					{
+						focuscontrol("EC_SOURCE_CODE");
+						return;
+					}
+					if (this.ActiveControl.Name == "XB2")
+					{
+						focuscontrol("XB1");
+						return;
+					}
+					if (this.ActiveControl.Name == "XB3")
+					{
+						focuscontrol("XB2");
+						return;
+					}
+					if (this.ActiveControl.Name == "XB4")
+					{
+						focuscontrol("XB3");
+						return;
+					}
+				}
+				#endregion
+			}
+			catch
+			{
+				searchpopup(false);
+				waitpopup(false);
+			}
+			return;
+		}
+		#endregion
+		#region state101 HoB Customer Capture - Results
+		private void processstate_101(stateevents eventtype, string eventname, int eventtag, string eventdata)
+		{
+			int lbpos, idx;
+			string lbtxt = "";
+			try
+			{
+				if (eventtype == stateevents.listboxchanged)
+				{
+					if ((lbpos = Convert.ToInt32(eventdata)) >= 0)
+					{
+						if ((lb1[2].SelectedIndex % LinesPerSordLine) > 0)
+						{
+							lb1[2].SelectedIndex--;
+							lb1[2].Refresh();
+							return;
+						}
+					}
+				}
+				if (eventtype == stateevents.functionkey)
+				{
+					if (eventdata == "DOWN")
+					{
+						idx = lb1[2].SelectedIndex;
+						if (idx < (lb1[2].Items.Count - LinesPerSordLine))
+							lb1[2].SelectedIndex = idx + LinesPerSordLine;
+
+						lb1[2].Refresh();
+					}
+					if (eventdata == "UP")
+					{
+						idx = lb1[2].SelectedIndex;
+						if (idx > 0)
+							lb1[2].SelectedIndex = idx - LinesPerSordLine;
+
+						lb1[2].Refresh();
+					}
+					if (eventdata == "BACK" || eventdata == "ESC")
+					{
+						m_calling_state = 101;
+						newstate(100);
+
+						//changetext("EC_POST_CODE", "");
+						changetext("EC_COMPANY_NAME", "");//HOUSE
+						changetext("EC_ADDRESS", "");
+						changetext("EC_CITY", "");
+						changetext("EC_COUNTY", "");
+						changecomb("EC_COUNTRY", id.DefCountry);
+
+						changecomb2("EC_TITLE", "");
+						changetext("EC_TITLE", defaulttitle);
+						changetext("EC_SURNAME", "");
+						changetext("EC_INITIALS", "");
+						changetext("EC_EMAIL_ADDRESS", "");
+
+						changecomb("EC_SOURCE_CODE", id.SourceCode);
+
+						changechecked("XB1", "0");
+						changechecked("XB2", "0");
+						changechecked("XB3", "0");
+						changechecked("XB4", "0");
+
+					}
+					if (eventdata == "SELECT")
+					{
+						idx = lb1[2].SelectedIndex;
+						if ((idx > -1) && (idx < lb1[2].Items.Count))
+						{
+							newstate(100);
+							lbtxt = lb1[2].Items[idx].ToString();
+							if (lb1[2].Text.EndsWith("_R")) // default blank address for postcode
+							{
+								currentcust.Customer = "";
+
+								if (tmpStrPostcode.Length > 0)
+									changetext("EC_POST_CODE", tmpStrPostcode);
+								else if (custsearchres.lns[idx].PostCode.Length > 0)
+									changetext("EC_POST_CODE", custsearchres.lns[idx].PostCode);
+
+								if (tmpAddress.Length > 0)
+									changetext("EC_ADDRESS", tmpAddress);
+
+								if (tmpCity.Length > 0)
+									changetext("EC_CITY", tmpCity);
+
+								changetext("EC_COMPANY_NAME", "");
+								tmpStrPostcode = "";
+								tmpAddress = "";
+								tmpCity = "";
+
+								changecomb("EC_COUNTRY", id.DefCountry);
+								changetext("EC_TITLE", defaulttitle);
+								changecomb("EC_SOURCE_CODE", id.SourceCode);
+							}
+							else if (lb1[2].Text.EndsWith("_*")) // elucid customer
+							{
+								idx = (idx - 2) / 2;
+
+								currentcust.Customer = custsearchres.lns[idx].Customer;
+								changetext("EC_POST_CODE", custsearchres.lns[idx].PostCode);
+								string tmpAddr = custsearchres.lns[idx].Address;
+								changetext("EC_ADDRESS", tmpAddr);
+								changetext("EC_CITY", custsearchres.lns[idx].City);
+								changetext("EC_COUNTY", custsearchres.lns[idx].County);
+								changecomb("EC_COUNTRY", custsearchres.lns[idx].CountryCode);
+
+								changetext("EC_COMPANY_NAME", "");
+								changecomb("EC_SOURCE_CODE", id.SourceCode);
+
+								changecomb2("EC_TITLE", custsearchres.lns[idx].Title);
+								changetext("EC_SURNAME", custsearchres.lns[idx].Surname);
+								changetext("EC_INITIALS", custsearchres.lns[idx].Initials);
+								changetext("EC_EMAIL_ADDRESS", custsearchres.lns[idx].EmailAddress);
+
+								changechecked("XB1", custsearchres.lns[idx].NoMail);
+								changechecked("XB2", custsearchres.lns[idx].NoPromote);
+								changechecked("XB3", custsearchres.lns[idx].NoEmail);
+								changechecked("XB4", custsearchres.lns[idx].NoPhone);
+							}
+							else // PAF address details
+							{
+								idx = (idx - 2 - (custsearchres.NumLines * 2)) / 2;
+
+								//ADD CITY TO CITY FIELD (FROM ADDRESS)
+								// ADD HOUSE TO HOUSE (FROM ADDRESS)
+
+								currentcust.Customer = "";
+								string tmpAddr = PAFaddressList.lns[idx].Address;
+								changetext("EC_ADDRESS", tmpAddr);
+								changetext("EC_CITY", PAFaddressList.lns[idx].City);
+								changetext("EC_COMPANY_NAME", "");
+								changecomb("EC_SOURCE_CODE", id.SourceCode);
+								changetext("EC_TITLE", defaulttitle);
+								changecomb("EC_COUNTRY", id.DefCountry);
+
+							}
+						}
+					}
+				}
+			}
+			catch
+			{
+			}
+			lb1[2].Refresh();
+			return;
+		}
+		#endregion
 
 		#endregion // stateprocessors
 
@@ -40964,7 +42054,7 @@ namespace epos {
 					StringBuilder messages = new StringBuilder(2048);
 
 					bool myloop = true;
-					//int exitloop = 0;
+					int exitloop = 0;
 					while (myloop)
 					{
 						bytes = s.Receive(RecvBytes, RecvBytes.Length, 0);
@@ -41020,10 +42110,22 @@ namespace epos {
 									idx = -85;
 									myloop = false;
 								}
+								else if (line.StartsWith("-91,"))//2017-01-12 SL, Contact-less issue	//WRONG CARD TYPE
+								{
+									idx = -91;
+									myloop = false;
+								}
+								else if (line.StartsWith("-99,"))//2017-01-12 SL //CANCEL
+								{
+									idx = -99;
+									myloop = false;
+								}
 								if (line.StartsWith("100,"))
 								{
 									// STEP COMPLETE.
-									if (line.Contains(",Merchant print complete") || line.Contains(",,Merchant print com")) //2017-01-10 SL
+									// 2017-01-10 SL - Jojo Email issue 3. Contact-less DECLINES still process order
+									//if (line.Contains(",Merchant print complete"))
+									if (line.Contains(",Merchant print complete") || line.Contains(",,Merchant print com")) //2017-01-10 SL- Jojo Contact-less fix
 									{
 										merchantCopy = false;
 										buildingReceipt = false;
@@ -41042,8 +42144,9 @@ namespace epos {
 											merchantVoucherMessage = "";
 										}
 									}
+									// 2017-01-10 SL - Jojo Email issue 3. Contact-less DECLINES still process order>>
 									//else if (line.Contains(",Cardholder print co"))
-									else if (line.Contains(",Cardholder print complete") || line.Contains(",,Cardholder print com"))
+									else if (line.Contains(",Cardholder print complete") || line.Contains(",,Cardholder print com")) //2017-01-10 SL- Jojo Contact-less fix
 									{
 										if (cardholderVoucherMessage.Length > 0)
 										{
@@ -41078,7 +42181,27 @@ namespace epos {
 									{
 										cardholderCopy = true;
 										foundcardholdercopy = true;
+
+										// 2017-03-27 - Store Card PAN (JoJo)	SJL>>
+										string voucline = "";
+										string[] vouclines = Regex.Split(mVeriFoneVoucher, ",");
+										for (int h = 0; h < vouclines.Length; h++)
+										{
+											voucline = vouclines[h];
+											if (voucline.Contains("*****") && !mVeriFoneVoucher.Contains("DECLINED"))//CARD PAN FOUND
+											{
+												for (idx = 0; idx < 10; idx++)
+												{
+													if (ord.cds[idx].CardPAN == "entering")
+													{
+														ord.cds[idx].CardPAN = voucline;
+													}
+												}
+											}
+										}
+										// 2017-03-27 - Store Card PAN (JoJo)	SJL^^
 									}
+
 								}
 								else if (buildingReceipt) // after a V,**, keep building until 100, print complete
 								{
@@ -41095,6 +42218,25 @@ namespace epos {
 										//debugccip("building cardholder receipt... ");
 										cardholderVoucherMessage = mVeriFoneVoucher;
 										savedCardholderVoucherMessage = mVeriFoneVoucher;
+
+										// 2017-03-27 - Store Card PAN (JoJo)	SJL>>
+										string voucline = "";
+										string[] vouclines = Regex.Split(mVeriFoneVoucher, ",");
+										for (int h = 0; h < vouclines.Length; h++)
+										{
+											voucline = vouclines[h];
+											if (voucline.Contains("*****") && !mVeriFoneVoucher.Contains("DECLINED"))//CARD PAN FOUND
+											{
+												for (idx = 0; idx < 10; idx++)
+												{
+													if (ord.cds[idx].CardPAN == "entering")
+													{
+														ord.cds[idx].CardPAN = voucline;
+													}
+												}
+											}
+										}
+										// 2017-03-27 - Store Card PAN (JoJo)	SJL^^
 									}
 								}
 								// DON'T SHOW MESSAGE OF THE RECEIPT (LOOKS MESSY)
@@ -41111,16 +42253,16 @@ namespace epos {
 						else
 						{
 							//debugccip("0 bytes...");
-							//if (exitloop > 99)
-							//{
-							//	debugccip("0 bytes, exitloop: " + exitloop.ToString());
-							//	exitloop = 0;
-							//	myloop = false;
-							//}
-							//else
-							//{
-							//	exitloop++;
-							//}
+							if (exitloop > 999)
+							{
+								debugccip("0 bytes, exitloop: " + exitloop.ToString());
+								exitloop = 0;
+								myloop = false;
+							}
+							else
+							{
+								exitloop++;
+							}
 						}
 					}// end while loop - get next message
 				}
@@ -42401,18 +43543,31 @@ namespace epos {
 				bool reprintit = false;
 				bool signature = false;
 
+				// 2017-07-04 SL 2.9.7.16 >>
+				if (ord.EReceiptRequest && ord.EReceipt)
+					return;
+
+				if (cust.Medical && st1[76].Length > 0 && !ord.EReceiptRequest)
+				{
+					//2017-07-26 JoJo
+					merchantVoucherMessage = "";
+					cardholderVoucherMessage = "";
+					mPrintVeriFoneVoucherType = 0;
+					emptyorder = SaleLogout ? 0 : 2;
+					printpopup(false);
+					//2017-07-26 JoJo
+
+					ord.EReceipt = true;
+					return;
+				}
+				// 2017-07-04 SL 2.9.7.16 ^^
+
 				if (!PrintRedeemedGiftCardVouchers())
 				{
 					// cancel order?
 					return;
 				}
 				PrintReversalGiftCardVouchers();
-				//if (!PrintReversalGiftCardVouchers())
-				//{
-				//    // cancel order?
-				//    return;
-				//}
-
 				printorder = new orderdata(ord);	// save order for reprint
 				printcust = new custdata(cust);
 
@@ -46070,7 +47225,8 @@ namespace epos {
 			IntPtr HBit = (IntPtr)0;
 			IntPtr hcdc = (IntPtr)0;
 
-
+			//rep.Value = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><POS_TILL_REP_OUT><TILL.PSEDB><TILL_NO>AXMINSTER TILL 1</TILL_NO><BALANCE>4844.29</BALANCE><Assistant_Analysis><User>HANNAHF</User><First_Name>Hannah</First_Name><Ass_Total_Value>203.48</Ass_Total_Value><No_Orders>9</No_Orders><Surname>Fielden</Surname></Assistant_Analysis><Assistant_Analysis><User>JONATHANF</User><First_Name>Jonathan</First_Name><Ass_Total_Value>4252.74</Ass_Total_Value><No_Orders>6</No_Orders><Surname>Flavell</Surname></Assistant_Analysis><Assistant_Analysis><User>MATTHEWY</User><First_Name>Matthew</First_Name><Ass_Total_Value>298.84</Ass_Total_Value><No_Orders>2</No_Orders><Surname>Youngs</Surname></Assistant_Analysis><Assistant_Analysis><User>MATTM</User><First_Name>Matt</First_Name><Ass_Total_Value>89.27</Ass_Total_Value><No_Orders>3</No_Orders><Surname>McAuley</Surname></Assistant_Analysis><Assistant_Totals><Average_Order>242.22</Average_Order><Assistant_tot_no_orders>20</Assistant_tot_no_orders><TOTAL_VALUE>4844.33</TOTAL_VALUE></Assistant_Totals><Payment_Analysis><Paym_pay_method>CASH</Paym_pay_method><Method_Total_Payments>+4561.97</Method_Total_Payments><Method_No_Payments>12</Method_No_Payments></Payment_Analysis><Payment_Analysis><Paym_pay_method>RETCC</Paym_pay_method><Method_Total_Payments>+282.32</Method_Total_Payments><Method_No_Payments>8</Method_No_Payments></Payment_Analysis><Payment_Totals><Total_Payments>4844.29</Total_Payments><No_Payments>20</No_Payments></Payment_Totals><Till_Pay_Method_Totals><Pay_Method>ACC</Pay_Method><Till_Balance>0.00</Till_Balance></Till_Pay_Method_Totals><Till_Pay_Method_Totals><Pay_Method>CASH</Pay_Method><Till_Balance>4561.97</Till_Balance></Till_Pay_Method_Totals><Till_Pay_Method_Totals><Pay_Method>CC</Pay_Method><Till_Balance>0.00</Till_Balance></Till_Pay_Method_Totals><Till_Pay_Method_Totals><Pay_Method>DISC</Pay_Method><Till_Balance>0.00</Till_Balance></Till_Pay_Method_Totals><Till_Pay_Method_Totals><Pay_Method>FINANC</Pay_Method><Till_Balance>0.00</Till_Balance></Till_Pay_Method_Totals><Till_Pay_Method_Totals><Pay_Method>GIVEX</Pay_Method><Till_Balance>0.00</Till_Balance></Till_Pay_Method_Totals><Till_Pay_Method_Totals><Pay_Method>GVS</Pay_Method><Till_Balance>0.00</Till_Balance></Till_Pay_Method_Totals><Till_Pay_Method_Totals><Pay_Method>RETCC</Pay_Method><Till_Balance>282.32</Till_Balance></Till_Pay_Method_Totals><Till_Pay_Method_Totals><Pay_Method>VOUC</Pay_Method><Till_Balance>0.00</Till_Balance></Till_Pay_Method_Totals></TILL.PSEDB></POS_TILL_REP_OUT>";
+			
 			XmlNode till = rep.SelectSingleNode("TILL.PSEDB");
 			XmlNodeList assistants = till.SelectNodes("Assistant_Analysis");
 			XmlNode assistantTotals = till.SelectSingleNode("Assistant_Totals");

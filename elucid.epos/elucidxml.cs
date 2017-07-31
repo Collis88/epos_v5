@@ -928,18 +928,53 @@ namespace epos
 			if (RealTotCardVal != 0)
 			{
 				paymentCount++;
-				outxml = outxml + startxml("OrderPayment");
-				outxml = outxml + xmlelement("CardType",id.CreditCardPayMethod);			
-			//	outxml = outxml + xmlelement("Amount", RealTotCardVal.ToString("G2"));
-				outxml = outxml + xmlelement("Amount", RealTotCardVal.ToString());
-				outxml = outxml + xmlelement("CardNumber", (ord.ManualCC ? "MANUAL" : ""));			
-				outxml = outxml + xmlelement("ExpiryDate","");			
-				outxml = outxml + xmlelement("IssueNumber","");			
-				outxml = outxml + xmlelement("SecurityCode","");			
-				outxml = outxml + xmlelement("PIN","");			
-				outxml = outxml + xmlelement("IssueDate","");			
-				outxml = outxml + endxml("OrderPayment");
+
+				//2017-03-27 - SJL - CARD PAN STORE >>
+				bool cardFound = false;
+				for (idx = 0; idx < 10; idx++)
+				{
+					if (ord.cds[idx].CardPAN.Length > 0)
+					{
+						cardFound = true;
+						outxml = outxml + startxml("OrderPayment");
+						outxml = outxml + xmlelement("CardType", id.CreditCardPayMethod);
+						//outxml = outxml + xmlelement("Amount", RealTotCardVal.ToString());
+						outxml = outxml + xmlelement("Amount", ord.cds[idx].CardAmount.ToString());
+
+						//2017-03-27 - SJL - CARD PAN STORE >>
+						//outxml = outxml + xmlelement("CardNumber", (ord.ManualCC ? "MANUAL" : ""));
+
+						if (ord.cds[idx].CardPAN == "entering")
+							outxml = outxml + xmlelement("CardNumber", "");
+						else if (ord.cds[idx].CardPAN.Length > 0)						
+							outxml = outxml + xmlelement("CardNumber", ord.cds[idx].CardPAN);						
+						else
+							outxml = outxml + xmlelement("CardNumber", (ord.ManualCC ? "MANUAL" : ""));
+						//2017-03-27 - SJL - CARD PAN STORE ^^
+
+						outxml = outxml + xmlelement("ExpiryDate", "");
+						outxml = outxml + xmlelement("IssueNumber", "");
+						outxml = outxml + xmlelement("SecurityCode", "");
+						outxml = outxml + xmlelement("PIN", "");
+						outxml = outxml + xmlelement("IssueDate", "");
+						outxml = outxml + endxml("OrderPayment");
+					}
+				}
+				if (!cardFound)
+				{
+					outxml = outxml + startxml("OrderPayment");
+					outxml = outxml + xmlelement("CardType", id.CreditCardPayMethod);
+					outxml = outxml + xmlelement("Amount", RealTotCardVal.ToString());
+					outxml = outxml + xmlelement("CardNumber", (ord.ManualCC ? "MANUAL" : ""));
+					outxml = outxml + xmlelement("ExpiryDate", "");
+					outxml = outxml + xmlelement("IssueNumber", "");
+					outxml = outxml + xmlelement("SecurityCode", "");
+					outxml = outxml + xmlelement("PIN", "");
+					outxml = outxml + xmlelement("IssueDate", "");
+					outxml = outxml + endxml("OrderPayment");
+				}
 			}
+			//2017-03-27 - SJL - CARD PAN STORE ^^
 			if (ord.FinanceVal != 0)
 			{
 				paymentCount++;
@@ -2651,6 +2686,18 @@ namespace epos
 			catch {
 				part.PartType = -1;
 			}
+			//5.0.0.13	SL	2017-06-27 >>
+			if (id.exclusivediscounts & part.ElucidPrice == 0.0m)
+			{
+				try
+				{
+					part.TaxRate = decimal.Parse(child.SelectSingleNode("TAX_RATE").InnerXml);
+				}
+				catch
+				{
+				}
+			}
+			//5.0.0.13	SL	2017-06-27 ^^
 
 			try
 			{
@@ -3066,7 +3113,7 @@ namespace epos
 
 				debugxml("Sending Order XML Data to Elucid within Order Add XML", false);
 
-#if PRINT_TO_FILE
+#if PRINT_T_O_FILE
 				// extra XML to file
 				debugxml(outxml, false, "10");
 #endif
@@ -3076,7 +3123,7 @@ namespace epos
 				errmsg_ret = "Successful Update";
 #else
 
-				debugxml("Return from Elucid within Order Add XML - Status = " + id.Status.ToString(), false, "10");
+				debugxml("Return from Elucid within Order Add XML - Status = " + id.Status.ToString(), false, "");
 				id.Status = sendxml("POS", "10", "PSS010", outxml, true, out inxml, out status_ret, out errmsg_ret);
 #endif
                 id.ErrorNumber = status_ret;
@@ -4025,7 +4072,8 @@ namespace epos
 		}
 		#endregion
 		#region postcodelookup
-		public int postcodelookup(instancedata id, string postcode, custdata cust) {
+		public int postcodelookup(instancedata id, string postcode, custdata cust)
+		{
 			string outxml;
 			string inxml;
 			int status_ret;
@@ -4037,41 +4085,53 @@ namespace epos
 			id.ErrorNumber = 0;
 			id.ErrorMessage = "";
 
+			try
+			{
 
-			outxml = create_pos_post_code_in_xml(id,postcode);
-
-			id.Status = sendxml("POS","16","PSS014",outxml,true,out inxml,out status_ret,out errmsg_ret);
-
-			id.ErrorNumber = status_ret;
-			id.ErrorMessage = errmsg_ret;
-			if (id.Status != 0)	// dont try to decipher xml if error
-				return (id.Status);
+				outxml = create_pos_post_code_in_xml(id, postcode);				
 
 
-			LResult = new XmlDocument();
-			LResult.LoadXml(inxml);
-			root = LResult.DocumentElement;
+				id.Status = sendxml("POS", "16", "PSS014", outxml, true, out inxml, out status_ret, out errmsg_ret);
+
+				id.ErrorNumber = status_ret;
+				id.ErrorMessage = errmsg_ret;
+				if (id.Status != 0)	// dont try to decipher xml if error
+					return (id.Status);
 
 
+				LResult = new XmlDocument();
+				LResult.LoadXml(inxml);
+				root = LResult.DocumentElement;
 
-			try {
-				child = root.SelectSingleNode("POS_DATA_OUT.XMLDB");
-			} catch {
-				return -1;
+				try
+				{
+					child = root.SelectSingleNode("POS_DATA_OUT.XMLDB");
+				}
+				catch
+				{
+					return -1;
+				}
+
+
+				try
+				{
+
+					cust.PostCode = child.SelectSingleNode("POST_CODE").InnerXml;
+					cust.City = child.SelectSingleNode("CITY").InnerXml;
+					cust.County = child.SelectSingleNode("COUNTY").InnerXml;
+					cust.Address = child.SelectSingleNode("ADDRESS").InnerXml;
+
+
+				}
+				catch
+				{
+				}
 			}
-
-
-			try {
-
-				cust.PostCode = child.SelectSingleNode("POST_CODE").InnerXml;
-				cust.City = child.SelectSingleNode("CITY").InnerXml;
-				cust.County = child.SelectSingleNode("COUNTY").InnerXml;
-				cust.Address = child.SelectSingleNode("ADDRESS").InnerXml;
-
-
-			} catch {
+			catch (Exception ex)
+			{
+				id.ErrorMessage = ex.Message;
+				return -999;
 			}
-
 			return id.Status;
 		}
 		#endregion
@@ -4286,7 +4346,7 @@ namespace epos
 				try {
 					LResult = new XmlDocument();
 					LResult.LoadXml(inxml);
-					//LResult.Load("C:\\trace\\X4.xml");
+					//LResult.Load("C:\\share\\pss017_out.xml");
 					root = LResult.DocumentElement;
 				} catch {
 					id.Status = -1;
@@ -5754,7 +5814,6 @@ namespace epos
             }
         }
         #endregion // get flight numbers
-
 		#region searchstockbin
 		public int searchstockbin(instancedata id, partdata part, stocksearch res, string useSite)
 		{
@@ -5852,8 +5911,7 @@ namespace epos
 			return id.Status;
 		}
 		#endregion //searchstockbin
-
-
+		
 		#endregion // transaction routines
 
 		#region debug

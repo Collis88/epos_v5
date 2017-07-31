@@ -5,6 +5,44 @@ namespace epos
 	/// <summary>
 	/// Summary description for orderdata.
 	/// </summary>
+	/// 
+	//2017-03-27	SJL >>
+	public class cardpayment
+	{
+		private decimal mCardAmount;
+		private string mCardPAN;
+
+		public decimal CardAmount
+		{
+			get
+			{
+				return mCardAmount;
+			}
+			set
+			{
+				mCardAmount = value;
+			}
+		}
+		public string CardPAN
+		{
+			get
+			{
+				return mCardPAN;
+			}
+			set
+			{
+				mCardPAN = value;
+			}
+		}
+
+		public cardpayment()
+		{
+			mCardAmount = 0.0m;
+			mCardPAN = "";
+		}
+	}
+	//2017-03-27	SJL ^^
+
 	public class orderdata
 	{
 		public enum OrderType {Order,Return,Refund};
@@ -61,8 +99,16 @@ namespace epos
 		private int mNewPoints;
 		private decimal mNewPointsValue;
 		private string mReason;
+		//2017-07-07 SL 2.9.7.16 >>
+		private bool mEReceipt;
+		private bool mEReceiptRequest;
+		//2017-07-07 SL 2.9.7.16 ^^
+
 
 		public orderline[] lns = new orderline[200];
+		//2017-03-27	SJL >>
+		public cardpayment[] cds = new cardpayment[10];
+		//2017-03-27	SJL ^^
 
 		public string OrderNumber
 		{
@@ -105,7 +151,8 @@ namespace epos
 				mManualCC = value;
 			}
 		}
-		public string CollectionType {
+		public string CollectionType
+		{
 			get {
 				return mCollectionType;
 			}
@@ -600,6 +647,29 @@ namespace epos
 				mPostageCost = value;
 			}
 		}
+		public bool EReceipt
+		{
+			get
+			{
+				return mEReceipt;
+			}
+			set
+			{
+				mEReceipt = value;
+			}
+		}
+		public bool EReceiptRequest
+		{
+			get
+			{
+				return mEReceiptRequest;
+			}
+			set
+			{
+				mEReceiptRequest = value;
+			}
+		}
+
 		public orderdata() {
 			buildorder();
 		}
@@ -661,6 +731,9 @@ namespace epos
 			mReason = "";
 			for (idx = 0; idx < 200;idx++)
 				lns[idx] = new orderline();
+
+			for (idx = 0; idx < 10; idx++)
+				cds[idx] = new cardpayment();
 		}
 		public orderdata(custdata cust) {
 			buildorder();
@@ -723,8 +796,17 @@ namespace epos
 			mVouchers = new System.Collections.SortedList();
 			mReason = "";
 
+			//2017-07-04 SL 5.0.0.14 >>
+			mEReceipt = false;
+			mEReceiptRequest = false;
+			//2017-07-04 SL 5.0.0.14 ^^
+
 			for (idx = 0; idx < 200;idx++)
 				lns[idx] = new orderline();
+
+			for (idx = 0; idx < 10; idx++)
+				cds[idx] = new cardpayment();
+
 		}
 		public orderdata(custdata cust, OrderType typ) {
 			buildorder(typ);
@@ -788,13 +870,21 @@ namespace epos
 			mNewPointsValue = ord.NewPointsValue;
 			mManualCC = ord.ManualCC;
 			mVouchers = ord.Vouchers;
-			mReason = ord.mReason;
+			mReason = ord.Reason;
+
+			mEReceipt = ord.EReceipt;
+			mEReceiptRequest = ord.EReceiptRequest;
 
 			for (idx = 0; idx < 200;idx++)
 				if (idx < ord.NumLines)
 					lns[idx] = new orderline(ord.lns[idx]);
 				else
 					lns[idx] = new orderline();
+
+			for (idx = 0; idx < 10; idx++)
+			{
+				cds[idx] = new cardpayment();
+			}
 		}
 	}
 }

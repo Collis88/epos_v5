@@ -113,8 +113,8 @@ namespace epos
 				outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "");
 
 			//outxml = outxml + xmlelement("CUSTOMER_GEN_CODE", id.CustomerGenerateCode);
-			outxml = outxml + xmlelement("USER_NAME", id.UserName);
-			outxml = outxml + xmlelement("TILL_NUMBER", id.TillNumber);
+			//outxml = outxml + xmlelement("USER_NAME", id.UserName);
+			//outxml = outxml + xmlelement("TILL_NUMBER", id.TillNumber);
 			outxml = outxml + endxml("POS_DATA_IN.XMLDB");
 			outxml = outxml + endxml("POS_CUST_ADD_IN");
 			outxml = outxml.Replace("&", "&amp;");

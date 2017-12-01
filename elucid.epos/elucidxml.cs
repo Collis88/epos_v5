@@ -933,7 +933,7 @@ namespace epos
 				bool cardFound = false;
 				for (idx = 0; idx < 10; idx++)
 				{
-					if (ord.cds[idx].CardPAN.Length > 0)
+					if (ord.cds[idx].CardPAN.Length > 0 && ord.cds[idx].CardPAN != "entering")
 					{
 						cardFound = true;
 						outxml = outxml + startxml("OrderPayment");
@@ -1292,9 +1292,8 @@ namespace epos
 					if (id.VoucherPayMethod == id.epos_cred_paym)
 					{
 						outxml = outxml + startxml("OrderPayment");
-
 						outxml = outxml + xmlelement("CardType", id.VoucherPayMethod);
-						outxml = outxml + xmlelement("Amount", ord.VoucherVal.ToString());
+						outxml = outxml + xmlelement("Amount", (ord.VoucherVal).ToString());
 						outxml = outxml + xmlelement("ExpiryDate", "");
 						outxml = outxml + xmlelement("IssueNumber", "");
 						outxml = outxml + xmlelement("SecurityCode", "");
@@ -2289,7 +2288,6 @@ namespace epos
 		}
 		#endregion
 		#region validatepart
-
 		// 2016-08-24 SL - TRY WEIGHT SCALE >>
 		private string extractpart(string wholepartname, string weightscaleprefix)
 		{
@@ -2334,7 +2332,6 @@ namespace epos
 			return result;
 		}
 		// 2016-08-24 SL -TRY WEIGHT SCALE ^^
-
 		public int validatepart(instancedata id, partdata part, custdata cust, bool exempt)
 		{
 			string outxml;
@@ -2511,7 +2508,6 @@ namespace epos
 			{
 				part.ProdGroup = "";
 			}
-
 
 			try
             {
@@ -2701,6 +2697,8 @@ namespace epos
 
 			try
 			{
+				// see logical 'EPOS_PROD_URL_ITEM'
+
 				part_asoc = child.SelectSingleNode("PART_ASOC.PSEDB");
 				part.DocumentName = part_asoc.SelectSingleNode("DOCUMENT_NAME").InnerXml;
                 //part.DocumentName = part.DocumentName.Replace("&amp;", "&");
@@ -2744,8 +2742,6 @@ namespace epos
 			catch (Exception)
 			{
 			}
-
-
 			return id.Status;
 		}
 		#endregion
@@ -4309,12 +4305,10 @@ namespace epos
 						price = -1.00M;
 						menu_out.item[idx].PartPrice = price;
 					}
-
 				}
-
-			} catch {
 			}
-
+			catch {
+			}
 			return id.Status;
 		}
 		#endregion
@@ -4369,12 +4363,9 @@ namespace epos
 				id.Status = 0;
 				//			return (id.Status);
 #endif
-			}			
-		
+			}
 			rep = root;
-
-			return id.Status;
-		
+			return id.Status;		
 		}
         #endregion
         #region cust_addresses
@@ -4812,6 +4803,7 @@ namespace epos
 
 			id.ErrorNumber = 0;
 			id.ErrorMessage = "";
+			strTemp = "";
 
 			// pass in voucher id from scan
 			outxml = pos_vouch_in(vouchres);
@@ -4836,9 +4828,7 @@ namespace epos
 				child = root.SelectSingleNode("POS_DATA_OUT.XMLDB");
 
 				vouchres.VoucherID = child.SelectSingleNode("CREDIT_REF").InnerXml;
-
 				vouchres.VoucherMsg = child.SelectSingleNode("INFO").InnerXml;
-
 				try
 				{
 					strTemp = child.SelectSingleNode("EXPIRY").InnerXml;
@@ -4846,8 +4836,16 @@ namespace epos
 				}
 				catch
 				{
-					vouchres.VoucherExpiry = DateTime.Now;
-					return -1;
+					try
+					{
+						vouchres.VoucherExpiry = DateTime.ParseExact(strTemp, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture);
+					}
+					catch
+					{
+						vouchres.VoucherExpiry = DateTime.MinValue;
+						//vouchres.VoucherExpiry = null;
+						//return -1;
+					}
 				}
 
 				try

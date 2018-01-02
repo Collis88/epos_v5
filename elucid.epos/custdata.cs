@@ -45,7 +45,11 @@ namespace epos
 		private string mCustRef;
 		private bool mNoteInd;
 		private bool mMedical;
-		private bool mTradeAccount;
+        private string mSkipEmailCheck;
+        private string mPhoneEve;
+        private string mDOB;
+        private string mReturnMsg;
+        private bool mTradeAccount;
 		private string mCustType;
 		private string mCustTypeDesc;
 		private decimal mBalance;
@@ -473,7 +477,55 @@ namespace epos
 				mMedical = value;
 			}
 		}
-		public bool TradeAccount
+
+        public string SkipEmailCheck
+        {
+            get
+            {
+                return mSkipEmailCheck;
+            }
+            set
+            {
+                mSkipEmailCheck = value;
+            }
+        }
+
+        public string PhoneEve
+        {
+            get
+            {
+                return mPhoneEve;
+            }
+            set
+            {
+                mPhoneEve = value;
+            }
+        }
+
+        public string DOB
+        {
+            get
+            {
+                return mDOB;
+            }
+            set
+            {
+                mDOB = value;
+            }
+        }
+
+        public string ReturnMsg
+        {
+            get
+            {
+                return mReturnMsg;
+            }
+            set
+            {
+                mReturnMsg = value;
+            }
+        }
+        public bool TradeAccount
 		{
 			get
 			{
@@ -633,7 +685,11 @@ namespace epos
 			mCustRef = "";
 			mNoteInd = false;
 			mMedical = false;
-			mTradeAccount = false;
+            mSkipEmailCheck = "0";
+            mPhoneEve = "";
+            mDOB = "";
+            mReturnMsg = "";
+            mTradeAccount = false;
 			mCustType = "";
 			mCustTypeDesc = "";
 			mBalance = 0.0M;
@@ -690,7 +746,11 @@ namespace epos
 			mCustRef = src.CustRef;
 			mNoteInd = src.NoteInd;
 			mMedical = src.Medical;
-			mTradeAccount = src.TradeAccount;
+            mSkipEmailCheck= src.SkipEmailCheck;
+            mPhoneEve = src.PhoneEve;
+            mDOB = src.mDOB;
+            mReturnMsg = src.ReturnMsg;
+            mTradeAccount = src.TradeAccount;
 			mCustType = src.CustType;
 			mCustTypeDesc = src.CustTypeDesc;
 			mBalance = src.Balance;

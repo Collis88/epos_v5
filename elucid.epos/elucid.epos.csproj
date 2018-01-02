@@ -124,7 +124,16 @@
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Microsoft.DirectX.AudioVideoPlayback, Version=1.0.2902.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" />
+    <Reference Include="Interop.CODISPLib16, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+      <HintPath>obj\x86\Debug\Interop.CODISPLib16.dll</HintPath>
+    </Reference>
+    <Reference Include="Interop.OPOSDISPLib, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>False</EmbedInteropTypes>
+      <HintPath>obj\x86\Debug\Interop.OPOSDISPLib.dll</HintPath>
+    </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System" />
@@ -139,6 +148,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddressLookupForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="AddressLookupForm.Designer.cs">
+      <DependentUpon>AddressLookupForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="custdata.cs" />
     <Compile Include="custsearch.cs" />
     <Compile Include="DCB.cs" />
@@ -167,6 +182,9 @@
     <Compile Include="partsearch.cs" />
     <Compile Include="print.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="AddressLookupForm.resx">
+      <DependentUpon>AddressLookupForm.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
       <SubType>Designer</SubType>
@@ -212,6 +230,7 @@
     <Compile Include="taskList.cs" />
     <Compile Include="tillData.cs" />
     <Compile Include="tillSearch.cs" />
+    <Compile Include="utilities.cs" />
     <Compile Include="voucher.cs" />
     <Compile Include="voucherdata.cs" />
     <Compile Include="vouchersearch.cs" />
@@ -253,22 +272,6 @@
       <VersionMinor>0</VersionMinor>
       <Lcid>0</Lcid>
       <WrapperTool>aximp</WrapperTool>
-      <Isolated>False</Isolated>
-    </COMReference>
-    <COMReference Include="CODISPLib16">
-      <Guid>{49EDDE12-DE45-11D5-858D-006008C9A3C7}</Guid>
-      <VersionMajor>1</VersionMajor>
-      <VersionMinor>0</VersionMinor>
-      <Lcid>0</Lcid>
-      <WrapperTool>tlbimp</WrapperTool>
-      <Isolated>False</Isolated>
-    </COMReference>
-    <COMReference Include="OPOSDISPLib">
-      <Guid>{CE3694E0-0FC2-11D0-8370-444553540000}</Guid>
-      <VersionMajor>1</VersionMajor>
-      <VersionMinor>0</VersionMinor>
-      <Lcid>0</Lcid>
-      <WrapperTool>tlbimp</WrapperTool>
       <Isolated>False</Isolated>
     </COMReference>
     <COMReference Include="WMPLib">

@@ -112,10 +112,19 @@ namespace epos
 			else
 				outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "");
 
-			//outxml = outxml + xmlelement("CUSTOMER_GEN_CODE", id.CustomerGenerateCode);
-			//outxml = outxml + xmlelement("USER_NAME", id.UserName);
-			//outxml = outxml + xmlelement("TILL_NUMBER", id.TillNumber);
-			outxml = outxml + endxml("POS_DATA_IN.XMLDB");
+            //2017-12-18 IC - 5.0.0.23
+             outxml = outxml + xmlelement("SKIP_EMAIL_CHECK", cust.SkipEmailCheck);
+
+            //2017-12-20 IC - 5.0.0.24
+            outxml = outxml + xmlelement("PHONE", cust.Phone);
+            outxml = outxml + xmlelement("PHONE_EVE", cust.PhoneEve);
+            outxml = outxml + xmlelement("MOBILE", cust.Mobile);
+            outxml = outxml + xmlelement("DOB", cust.DOB);
+
+            //outxml = outxml + xmlelement("CUSTOMER_GEN_CODE", id.CustomerGenerateCode);
+            //outxml = outxml + xmlelement("USER_NAME", id.UserName);
+            //outxml = outxml + xmlelement("TILL_NUMBER", id.TillNumber);
+            outxml = outxml + endxml("POS_DATA_IN.XMLDB");
 			outxml = outxml + endxml("POS_CUST_ADD_IN");
 			outxml = outxml.Replace("&", "&amp;");
 
@@ -123,10 +132,10 @@ namespace epos
 		}
 		#endregion //create_cust_add_xml
 		#region create_cust_update_xml
-		public string create_cust_update_xml(instancedata id, custdata cust)
+
+        public string create_cust_update_xml(instancedata id, custdata cust)
 		{
 			string outxml = xmlhdr();
-
 			outxml = outxml + startxml("POS_CUST_UPD_IN");
 			outxml = outxml + startxml("POS_DATA_IN.XMLDB");
 			outxml = outxml + xmlelement("CUSTOMER", cust.Customer);
@@ -156,7 +165,17 @@ namespace epos
 			else
 				outxml = outxml + xmlelement("MEDICAL_EXEMPTION", "");
 
-			outxml = outxml + xmlelement("USER_NAME", id.UserName);
+            //2017-12-18 IC - 5.0.0.23
+            outxml = outxml + xmlelement("SKIP_EMAIL_CHECK", cust.SkipEmailCheck);
+
+            //2017-12-20 IC - 5.0.0.24
+            outxml = outxml + xmlelement("PHONE", cust.Phone);
+            outxml = outxml + xmlelement("PHONE_EVE", cust.PhoneEve);
+            outxml = outxml + xmlelement("MOBILE", cust.Mobile);
+            outxml = outxml + xmlelement("DOB", cust.DOB);
+
+
+            outxml = outxml + xmlelement("USER_NAME", id.UserName);
 			outxml = outxml + xmlelement("TILL_NUMBER", id.TillNumber);
 			outxml = outxml + endxml("POS_DATA_IN.XMLDB");
 			outxml = outxml + endxml("POS_CUST_UPD_IN");
@@ -319,8 +338,27 @@ namespace epos
 						res.lns[idx].City = child.SelectSingleNode("CITY").InnerXml;
 						res.lns[idx].PostCode = child.SelectSingleNode("POSTCODE").InnerXml;
 						res.lns[idx].Phone = child.SelectSingleNode("PHONE_DAY").InnerXml;
-						try
-						{
+
+                        //2017-12-20 IC - 5.0.0.24
+                        try
+                        {
+                            res.lns[idx].PhoneEve = child.SelectSingleNode("PHONE_EVE").InnerXml;
+                        }
+                        catch
+                        {
+                            res.lns[idx].PhoneEve = "";
+                        }
+                        try
+                        {
+                            res.lns[idx].DOB = child.SelectSingleNode("DOB").InnerXml;
+                        }
+                        catch
+                        {
+                            res.lns[idx].DOB = "";
+                        }
+
+                        try
+                        {
 							res.lns[idx].Initials = child.SelectSingleNode("INITIALS").InnerXml;
 						}
 						catch
@@ -577,7 +615,9 @@ namespace epos
 				try
 				{
 					cust.Customer = child.SelectSingleNode("CUSTOMER").InnerXml;
-				}
+                    //2017-12-18 IC - 5.0.0.23
+                    cust.ReturnMsg = child.SelectSingleNode("RETURN_MSG").InnerXml;
+                }
 				catch (Exception)
 				{
 				}
@@ -649,10 +689,13 @@ namespace epos
 			return id.Status;
 
 		}
-		#endregion //custupdate
-		#endregion //transaction
+        #endregion //custupdate
 
-		public elucidsql(string tracedir, string connstring, int timeout)
+
+        
+        #endregion //transaction
+
+        public elucidsql(string tracedir, string connstring, int timeout)
 		{
 			//
 			// TODO: Add constructor logic here
